@@ -46,7 +46,7 @@ public class RefreshTokenService {
     }
 
     @Transactional
-    public String rotate(String token) {
+    public TokenRotate rotate(String token) {
         if(token == null) throw new IllegalArgumentException("Token must not be null");
 
         Optional<RefreshToken> refreshToken = refreshTokenRepository.findByTokenHash(hash(token));
@@ -58,7 +58,7 @@ public class RefreshTokenService {
 
         stored.revoke();
         User user = stored.getUser();
-        return createRefreshToken(user);
+        return new TokenRotate(user, createRefreshToken(user));
     }
 
     @Transactional
@@ -71,4 +71,6 @@ public class RefreshTokenService {
             }
         }
     }
+
+    public record TokenRotate(User user, String refreshToken){}
 }
