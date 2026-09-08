@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
     private final RefreshTokenService refreshTokenService;
     private final TokenService tokenService;
-    private RefreshCookieFactory refreshCookieFactory;
+    private final RefreshCookieFactory refreshCookieFactory;
 
     public AuthController(RefreshTokenService refreshTokenService, TokenService tokenService, RefreshCookieFactory refreshCookieFactory) {
         this.refreshTokenService = refreshTokenService;

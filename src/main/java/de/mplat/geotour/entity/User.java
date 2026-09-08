@@ -23,7 +23,7 @@ public class User {
 
     public User() {}
 
-    public User(String email, String google_sub) {
+    public User(String google_sub, String email) {
         this.email = email;
         this.googleSub = google_sub;
     }
@@ -40,7 +40,7 @@ public class User {
         return createdAt;
     }
 
-    public String getGoogle_sub() {
+    public String getGoogleSub() {
         return googleSub;
     }
 }

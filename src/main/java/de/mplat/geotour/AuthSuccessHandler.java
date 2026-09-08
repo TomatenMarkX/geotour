@@ -2,6 +2,7 @@ package de.mplat.geotour;
 
 import de.mplat.geotour.entity.User;
 import de.mplat.geotour.entity.UserRepository;
+import de.mplat.geotour.factory.RefreshCookieFactory;
 import de.mplat.geotour.service.RefreshTokenService;
 import de.mplat.geotour.service.TokenService;
 import jakarta.servlet.ServletException;
@@ -30,14 +31,16 @@ public class AuthSuccessHandler implements AuthenticationSuccessHandler {
     private final TokenService tokenService;
     private final RefreshTokenService refreshTokenService;
     private final String frontendUrl;
+    private final RefreshCookieFactory refreshCookieFactory;
     private final boolean cookieSecure;
 
-    public AuthSuccessHandler(UserRepository userRepository, TokenService tokenService, RefreshTokenService refreshTokenService, @Value("${app.frontend.url}") String frontendUrl, @Value("${app.cookie-secure}") boolean cookieSecure) {
+    public AuthSuccessHandler(UserRepository userRepository, TokenService tokenService, RefreshTokenService refreshTokenService, @Value("${app.frontend.url}") String frontendUrl, @Value("${app.cookie-secure}") boolean cookieSecure, RefreshCookieFactory refreshCookieFactory) {
         this.userRepository = userRepository;
         this.tokenService = tokenService;
         this.refreshTokenService = refreshTokenService;
         this.frontendUrl = frontendUrl;
         this.cookieSecure = cookieSecure;
+        this.refreshCookieFactory = refreshCookieFactory;
     }
 
 
@@ -53,7 +56,8 @@ public class AuthSuccessHandler implements AuthenticationSuccessHandler {
         String accessToken = tokenService.createAccessToken(user);
         String refreshToken = refreshTokenService.createRefreshToken(user);
 
-        ResponseCookie cookie = ResponseCookie.from("refresh_token", refreshToken).httpOnly(true).secure(cookieSecure).sameSite("Lax").path("/auth").maxAge(Duration.ofDays(30)).build();
+        ResponseCookie cookie = refreshCookieFactory.create(refreshToken);
+        
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
         response.sendRedirect(frontendUrl + "/auth/callback#token=" + accessToken);
     }
