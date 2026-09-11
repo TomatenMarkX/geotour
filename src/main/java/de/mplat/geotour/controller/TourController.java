@@ -4,39 +4,41 @@ import de.mplat.geotour.entity.Tour;
 import de.mplat.geotour.entity.TourRepository;
 import de.mplat.geotour.entity.User;
 import de.mplat.geotour.entity.UserRepository;
+import de.mplat.geotour.service.StorageService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import javax.management.ConstructorParameters;
 import java.net.URI;
 import java.util.List;
 import java.util.UUID;
 
-@Controller
+@RestController
 @RequestMapping("/tours")
 public class TourController {
     private final UserRepository userRepository;
     private final TourRepository tourRepository;
+    private final StorageService storageService;
 
-    public TourController(UserRepository userRepository, TourRepository tourRepository) {
+    public TourController(UserRepository userRepository, TourRepository tourRepository, StorageService storageService) {
         this.userRepository = userRepository;
         this.tourRepository = tourRepository;
+        this.storageService = storageService;
     }
 
     @PostMapping("/{tourId}/photos/upload-urls")
-    public ResponseEntity<Void> uploadPhoto(@AuthenticationPrincipal Jwt jwt, @PathVariable("tourId") UUID tourId, @RequestBody UploadUrlRequest request) {
-
-        return ResponseEntity.ok().build();
+    public List<StorageService.PresignedUpload> uploadPhoto(@AuthenticationPrincipal Jwt jwt, @PathVariable("tourId") UUID tourId, @RequestBody UploadUrlRequest request) {
+        requireOwnerTour(tourId, jwt);
+        return request.filenames().stream().map((filename) -> storageService.presignedUpload(filename)).toList();
     }
 
     @PostMapping
@@ -48,6 +50,10 @@ public class TourController {
 
     private UUID userIdOf(Jwt jwt) {
         return UUID.fromString(jwt.getSubject());
+    }
+
+    private Tour requireOwnerTour(UUID tourId, Jwt jwt) {
+        return tourRepository.findByIdAndOwner_Id(tourId, userIdOf(jwt)).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
     }
 
     public record CreateTourRequest(@NotBlank @Size(max = 200) String name) {}

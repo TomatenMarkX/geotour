@@ -21,9 +21,9 @@ public class StorageService {
     }
 
     public PresignedUpload presignedUpload(String originalName) {
-        String key = "/staging" + UUID.randomUUID().toString() + extensionOf(originalName);
+        String key = "staging/" + UUID.randomUUID().toString() + extensionOf(originalName);
         var request = PutObjectPresignRequest.builder().signatureDuration(duration).putObjectRequest(r -> r.bucket(bucket).key(key)).build();
-        return new PresignedUpload(originalName, key, s3Presigner.presignPutObject(request).toString());
+        return new PresignedUpload(originalName, key, s3Presigner.presignPutObject(request).url().toString());
     }
 
     private String extensionOf(String name) {
@@ -31,5 +31,5 @@ public class StorageService {
         return name.contains(".") ? name.substring(name.lastIndexOf(".")).toLowerCase() : "";
     }
 
-    private record PresignedUpload(String originalName, String key, String url) {}
+    public record PresignedUpload(String originalName, String key, String url) {}
 }

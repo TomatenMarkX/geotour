@@ -11,4 +11,5 @@ public interface TourRepository extends JpaRepository<Tour, UUID> {
     List<Tour> findByOwner_id(UUID owner_id);
     Optional<Tour> findByName(String name);
     Optional<Tour> findByShareToken(UUID shareToken);
+    Optional<Tour> findByIdAndOwner_Id(UUID id, UUID ownerId);
 }
