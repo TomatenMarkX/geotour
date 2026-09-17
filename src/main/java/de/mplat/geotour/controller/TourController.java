@@ -10,6 +10,7 @@ import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -25,12 +26,14 @@ public class TourController {
     private final TourRepository tourRepository;
     private final StorageService storageService;
     private final PhotoService photoService;
+    private final PasswordEncoder encoder;
 
-    public TourController(UserRepository userRepository, TourRepository tourRepository, StorageService storageService, PhotoService photoService) {
+    public TourController(UserRepository userRepository, TourRepository tourRepository, StorageService storageService, PhotoService photoService, PasswordEncoder encoder) {
         this.userRepository = userRepository;
         this.tourRepository = tourRepository;
         this.storageService = storageService;
         this.photoService = photoService;
+        this.encoder = encoder;
     }
 
     @PostMapping("/{tourId}/photos/upload-urls")
@@ -58,6 +61,15 @@ public class TourController {
         return ResponseEntity.created(URI.create("/tours/" + tour.getId())).body(new TourResponse(tour.getId(), tour.getName()));
     }
 
+    @PutMapping("/{tourId}/password")
+    public ResponseEntity<Void> changeTourPassword(@AuthenticationPrincipal Jwt jwt, @PathVariable("tourId") UUID tourId, @Valid @RequestBody SetPasswordRequest request) {
+        Tour tour = requireOwnerTour(tourId, jwt);
+        String password = request.password();
+        tour.setPasswordHash((password == null || password.isBlank()) ? null : encoder.encode(password));
+        tourRepository.save(tour);
+        return ResponseEntity.noContent().build();
+    }
+
     private UUID userIdOf(Jwt jwt) {
         return UUID.fromString(jwt.getSubject());
     }
@@ -71,4 +83,5 @@ public class TourController {
     public record UploadUrlRequest(@NotEmpty @Size(max = 50) List<@NotBlank String> filenames) {}
     public record RegisterPhotoRequest(@NotEmpty List<PhotoService.PhotoRegistration> photos) {}
     public record PhotoResponse(UUID id, String key, double lat, double lng) {}
+    public record SetPasswordRequest(String password) {}
 }
