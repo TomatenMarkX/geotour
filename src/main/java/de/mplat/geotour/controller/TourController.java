@@ -1,9 +1,7 @@
 package de.mplat.geotour.controller;
 
-import de.mplat.geotour.entity.Tour;
-import de.mplat.geotour.entity.TourRepository;
-import de.mplat.geotour.entity.User;
-import de.mplat.geotour.entity.UserRepository;
+import de.mplat.geotour.entity.*;
+import de.mplat.geotour.service.PhotoService;
 import de.mplat.geotour.service.StorageService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -13,11 +11,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
-import javax.management.ConstructorParameters;
 import java.net.URI;
 import java.util.List;
 import java.util.UUID;
@@ -28,17 +24,31 @@ public class TourController {
     private final UserRepository userRepository;
     private final TourRepository tourRepository;
     private final StorageService storageService;
+    private final PhotoService photoService;
 
-    public TourController(UserRepository userRepository, TourRepository tourRepository, StorageService storageService) {
+    public TourController(UserRepository userRepository, TourRepository tourRepository, StorageService storageService, PhotoService photoService) {
         this.userRepository = userRepository;
         this.tourRepository = tourRepository;
         this.storageService = storageService;
+        this.photoService = photoService;
     }
 
     @PostMapping("/{tourId}/photos/upload-urls")
-    public List<StorageService.PresignedUpload> uploadPhoto(@AuthenticationPrincipal Jwt jwt, @PathVariable("tourId") UUID tourId, @RequestBody UploadUrlRequest request) {
+    public List<StorageService.PresignedUpload> uploadPhoto(@AuthenticationPrincipal Jwt jwt, @PathVariable("tourId") UUID tourId, @Valid @RequestBody UploadUrlRequest request) {
         requireOwnerTour(tourId, jwt);
         return request.filenames().stream().map((filename) -> storageService.presignedUpload(filename)).toList();
+    }
+
+    @PostMapping("/{tourId}/photos")
+    public ResponseEntity<List<PhotoResponse>> registerPhoto(@AuthenticationPrincipal Jwt jwt, @PathVariable("tourId") UUID tourId, @Valid @RequestBody RegisterPhotoRequest request) {
+        try {
+            List<Photo> promotedPhotos = photoService.register(request.photos(), requireOwnerTour(tourId, jwt));
+            List<PhotoResponse> responses = promotedPhotos.stream().map(photo -> new PhotoResponse(photo.getId(), photo.getFilename(), photo.getLat(), photo.getLng())).toList();
+            return ResponseEntity.status(HttpStatus.CREATED).body(responses);
+        }
+        catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        }
     }
 
     @PostMapping
@@ -59,4 +69,6 @@ public class TourController {
     public record CreateTourRequest(@NotBlank @Size(max = 200) String name) {}
     public record TourResponse(UUID id, String name) {}
     public record UploadUrlRequest(@NotEmpty @Size(max = 50) List<@NotBlank String> filenames) {}
+    public record RegisterPhotoRequest(@NotEmpty List<PhotoService.PhotoRegistration> photos) {}
+    public record PhotoResponse(UUID id, String key, double lat, double lng) {}
 }

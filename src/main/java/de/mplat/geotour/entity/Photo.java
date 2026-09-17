@@ -33,7 +33,8 @@ public class Photo {
 
     protected Photo() {}
 
-    public Photo(String filename, double lat, double lng, Long filesize) {
+    public Photo(Tour tour, String filename, double lat, double lng, Long filesize) {
+        this.tour = tour;
         this.filename = filename;
         this.lat = lat;
         this.lng = lng;
@@ -62,5 +63,9 @@ public class Photo {
 
     public Instant getTimestamp() {
         return createdAt;
+    }
+
+    public UUID getId() {
+        return id;
     }
 }
