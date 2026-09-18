@@ -1,0 +1,9 @@
+services:
+  postgres:
+    image: 'postgres:latest'
+    environment:
+      - 'POSTGRES_DB=geotour'
+      - 'POSTGRES_PASSWORD=geotourpasswd'
+      - 'POSTGRES_USER=geotour'
+    ports:
+      - '5432:5432'
