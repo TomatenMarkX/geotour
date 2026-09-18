@@ -64,16 +64,19 @@ public class TourController {
     @PostMapping("/verify")
     public ResponseEntity<?> verifyTour(@Valid @RequestBody VerifyTourRequest request) {
         Optional<Tour> tour = tourRepository.findByShareTokenWithPhotos(request.shareToken());
+
         if (tour.isEmpty() || !tour.get().isPublic()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
         }
-        if (tour.get().getPasswordHash() == null) {
-            return ResponseEntity.status(HttpStatus.OK).body(new NeedsPasswordResponse(false, false));
-        }
-        String pw = request.password();
-        if (pw == null || pw.isBlank() || !encoder.matches(pw, tour.get().getPasswordHash())) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new NeedsPasswordResponse(true, pw != null && !pw.isBlank()));
+
+        String hash = tour.get().getPasswordHash();
+
+        if (hash != null) {
+            String pw = request.password();
+            boolean providedPw = pw != null && !pw.isBlank();
+            if (!providedPw || !encoder.matches(pw, hash)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new NeedsPasswordResponse(true, true));
+            }
         }
         List<Photo> photos = tour.get().getPhotos();
 
