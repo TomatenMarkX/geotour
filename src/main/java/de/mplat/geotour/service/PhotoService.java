@@ -45,7 +45,7 @@ public class PhotoService {
             }
             return photoRepository.saveAll(items);
         } catch (RuntimeException e) {
-            promoted.forEach(storageService::deleteQuietly);
+            storageService.deleteQuietly(promoted);
             throw e;
         }
     }

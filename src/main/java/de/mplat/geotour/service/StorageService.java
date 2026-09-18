@@ -5,11 +5,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectsResponse;
+import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -71,6 +74,27 @@ public class StorageService {
         }
         catch (RuntimeException e) {
             logger.warn("Konnte {} nicht löschen", key, e);
+        }
+    }
+
+    public void deleteQuietly(List<String> keys) {
+        if (keys == null || keys.isEmpty()) return;
+        for (int from = 0; from <= keys.size(); from += 1000) {
+            List<ObjectIdentifier> identifiers = keys.subList(from, Math.min(from + 1000, keys.size())).stream().map(
+                    key -> ObjectIdentifier.builder().key(key).build()
+            ).toList();
+            try {
+                DeleteObjectsResponse response = s3Client.deleteObjects(builder -> builder.bucket(bucket).delete(d -> d.objects(identifiers).quiet(true)));
+                if (response.hasErrors()) {
+                    response.errors().forEach(error -> logger.warn("Konnte {} nicht löschen: {}", error.key(), error.code()));
+                } else {
+                    logger.info("Löschvorgang erfolgreich");
+                }
+            }
+            catch (RuntimeException e) {
+                logger.warn("Konnte {} nicht löschen", keys, e);
+            }
+
         }
     }
 

@@ -32,7 +32,7 @@ create table photos (
                         lng        double precision not null,
                         filesize   bigint,
                         position int not null,
-                        created_at timestamptz not null default now()
+                        created_at timestamptz not null default now(),
                         constraint photos_tour_position_unique unique (tour_id, position)
                             deferrable initially deferred
 );

@@ -87,6 +87,26 @@ public class TourController {
                         mapper.mapPhotosToPublicPhotos(photos)));
     }
 
+    @PutMapping("/{tourId}/privacy")
+    public ShareResponse changeTourPrivacy(@AuthenticationPrincipal Jwt jwt, @PathVariable("tourId") UUID tourId, @Valid @RequestBody ChangePrivacyRequest request) {
+        Tour tour = requireOwnerTour(tourId, jwt);
+        tour.setPublic(request.isPublic());
+        if (request.isPublic() && tour.getShareToken() == null) {
+            tour.setShareToken(UUID.randomUUID());
+            return new ShareResponse(true, tour.getShareToken());
+        }
+        tour.setShareToken(null);
+        return new ShareResponse(request.isPublic(), tour.getShareToken());
+    }
+
+    @PostMapping("/{tourId}/privacy/rotate")
+    @Transactional
+    public ShareResponse rotateShareToken(@AuthenticationPrincipal Jwt jwt, @PathVariable("tourId") UUID tourId) {
+        Tour tour = requireOwnerTour(tourId, jwt);
+        tour.setShareToken(UUID.randomUUID());
+        return new ShareResponse(tour.isPublic(), tour.getShareToken());
+    }
+
     @PostMapping
     public ResponseEntity<TourResponse> createTour(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody CreateTourRequest request) {
         User user = userRepository.getReferenceById(userIdOf(jwt));
@@ -94,12 +114,31 @@ public class TourController {
         return ResponseEntity.created(URI.create("/tours/" + tour.getId())).body(new TourResponse(tour.getId(), tour.getName()));
     }
 
+    @DeleteMapping("/{tourId}")
+    @Transactional
+    public ResponseEntity<Void> deleteTour(@AuthenticationPrincipal Jwt jwt, @PathVariable("tourId") UUID tourId) {
+        Tour tour = requireOwnerTour(tourId, jwt);
+        List<String> keys = tour.getPhotos().stream().map(Photo::getStorageKey).toList();
+        tourRepository.delete(tour);
+        storageService.deleteQuietly(keys);
+        return ResponseEntity.noContent().build();
+    }
+
+
     @PutMapping("/{tourId}/password")
     @Transactional
     public ResponseEntity<Void> changeTourPassword(@AuthenticationPrincipal Jwt jwt, @PathVariable("tourId") UUID tourId, @Valid @RequestBody SetPasswordRequest request) {
         Tour tour = requireOwnerTour(tourId, jwt);
         String password = request.password();
         tour.setPasswordHash((password == null || password.isBlank()) ? null : encoder.encode(password));
+        tourRepository.save(tour);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{tourId}/name")
+    public ResponseEntity<Void> changeTourName (@AuthenticationPrincipal Jwt jwt, @PathVariable ("tourId") UUID tourId, @Valid @RequestBody SetNameRequest request) {
+        Tour tour = requireOwnerTour(tourId, jwt);
+        tour.setName(request.name());
         tourRepository.save(tour);
         return ResponseEntity.noContent().build();
     }
@@ -122,4 +161,7 @@ public class TourController {
     public record NeedsPasswordResponse(boolean needsPassword, boolean wrong) {}
     public record PublicTourResponse(UUID id, String name, List<PublicPhotos> photos){}
     public record PublicPhotos(UUID id, int position, double lat, double lng, String url){}
+    public record ChangePrivacyRequest(@NotNull boolean isPublic) {}
+    public record ShareResponse(boolean isPublic, UUID shareToken) {}
+    public record SetNameRequest(@NotBlank @Size(max = 200) String name) {}
 }

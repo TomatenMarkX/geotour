@@ -56,12 +56,24 @@ public class Tour {
         return name;
     }
 
+    public void setName(String name) {
+        this.name = name;
+    }
+
     public boolean isPublic() {
         return isPublic;
     }
 
+    public void setPublic(boolean isPublic) {
+        this.isPublic = isPublic;
+    }
+
     public UUID getShareToken() {
         return shareToken;
+    }
+
+    public void setShareToken(UUID shareToken) {
+        this.shareToken = shareToken;
     }
 
     public String getPasswordHash() {
