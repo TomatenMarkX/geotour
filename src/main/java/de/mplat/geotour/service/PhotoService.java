@@ -34,12 +34,14 @@ public class PhotoService {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT, "Ungültige Uploads oder Duplikate: " + invalid);
         }
         List<String> promoted = new ArrayList<>();
+        int offset = photoRepository.findMaxPositionByTourId(tour.getId()).orElse(-1) + 1;
         try {
             List<Photo> items = new ArrayList<>();
-            for(PhotoRegistration photo : photos) {
+            for (int index = 0; index < photos.size(); index++) {
+                PhotoRegistration photo = photos.get(index);
                 String targetKey = storageService.promote(photo.key(), tour.getId());
                 promoted.add(targetKey);
-                items.add(new Photo(tour, targetKey, photo.lat(), photo.lng(), filesizes.get(photo.key())));
+                items.add(new Photo(tour, targetKey, photo.lat(), photo.lng(), filesizes.get(photo.key()), offset + index));
             }
             return photoRepository.saveAll(items);
         } catch (RuntimeException e) {

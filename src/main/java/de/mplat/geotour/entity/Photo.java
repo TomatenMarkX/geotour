@@ -16,8 +16,11 @@ public class Photo {
     @JoinColumn(name = "tour_id")
     private Tour tour;
 
-    @Column(unique = true,  nullable = false)
-    private String filename;
+    @Column(name = "storage_key", unique = true,  nullable = false)
+    private String storageKey;
+
+    @Column(nullable = false)
+    private int position;
 
     @Column(nullable = false)
     private double lat;
@@ -33,20 +36,21 @@ public class Photo {
 
     protected Photo() {}
 
-    public Photo(Tour tour, String filename, double lat, double lng, Long filesize) {
+    public Photo(Tour tour, String storageKey, double lat, double lng, Long filesize, int position) {
         this.tour = tour;
-        this.filename = filename;
+        this.storageKey = storageKey;
         this.lat = lat;
         this.lng = lng;
         this.filesize = filesize;
+        this.position = position;
     }
 
     public Tour getTour() {
         return tour;
     }
 
-    public String getFilename() {
-        return filename;
+    public String getStorageKey() {
+        return storageKey;
     }
 
     public double getLat() {
@@ -61,8 +65,12 @@ public class Photo {
         return filesize;
     }
 
-    public Instant getTimestamp() {
+    public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public int getPosition() {
+        return position;
     }
 
     public UUID getId() {

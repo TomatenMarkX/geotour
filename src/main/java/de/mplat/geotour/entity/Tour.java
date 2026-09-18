@@ -1,9 +1,9 @@
 package de.mplat.geotour.entity;
 
 import jakarta.persistence.*;
-import org.hibernate.boot.internal.CollectionClassification;
-
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -23,6 +23,10 @@ public class Tour {
     @Column(name = "is_public", nullable = false)
     private boolean isPublic;
 
+    @OneToMany(mappedBy = "tour", fetch = FetchType.LAZY)
+    @OrderBy("createdAt ASC")
+    private List<Photo> photos = new ArrayList<>();
+
     @Column(name = "share_token", unique = true)
     private UUID shareToken;
 
@@ -34,10 +38,10 @@ public class Tour {
 
     protected Tour() {}
 
-    public Tour(User owner, String name, boolean is_public) {
+    public Tour(User owner, String name, boolean isPublic) {
         this.owner = owner;
         this.name = name;
-        this.isPublic = is_public;
+        this.isPublic = isPublic;
     }
 
     public UUID getId() {
@@ -70,5 +74,9 @@ public class Tour {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public List<Photo> getPhotos() {
+        return photos;
     }
 }

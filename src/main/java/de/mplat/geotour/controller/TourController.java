@@ -17,6 +17,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.net.URI;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @RestController
@@ -46,12 +47,27 @@ public class TourController {
     public ResponseEntity<List<PhotoResponse>> registerPhoto(@AuthenticationPrincipal Jwt jwt, @PathVariable("tourId") UUID tourId, @Valid @RequestBody RegisterPhotoRequest request) {
         try {
             List<Photo> promotedPhotos = photoService.register(request.photos(), requireOwnerTour(tourId, jwt));
-            List<PhotoResponse> responses = promotedPhotos.stream().map(photo -> new PhotoResponse(photo.getId(), photo.getFilename(), photo.getLat(), photo.getLng())).toList();
+            List<PhotoResponse> responses = promotedPhotos.stream().map(photo -> new PhotoResponse(photo.getId(), photo.getStorageKey(), photo.getLat(), photo.getLng())).toList();
             return ResponseEntity.status(HttpStatus.CREATED).body(responses);
         }
         catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
+    }
+
+    @PostMapping("/verify")
+    public ResponseEntity<?> verifyTour(@Valid @RequestBody VerifyTourRequest request) {
+        Optional<Tour> tour = tourRepository.findByShareToken(request.shareToken());
+        if (tour.isEmpty() || !tour.get().isPublic()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+        }
+        if (tour.get().getPasswordHash() == null) {
+            return ResponseEntity.status(HttpStatus.OK).body(new NeedsPasswordResponse(false, false));
+        }
+        if (!encoder.matches(request.password(), tour.get().getPasswordHash()) || request.password().isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new NeedsPasswordResponse(true, true));
+        }
+        return ResponseEntity.status(HttpStatus.OK).body(null);
     }
 
     @PostMapping
@@ -84,4 +100,7 @@ public class TourController {
     public record RegisterPhotoRequest(@NotEmpty List<PhotoService.PhotoRegistration> photos) {}
     public record PhotoResponse(UUID id, String key, double lat, double lng) {}
     public record SetPasswordRequest(String password) {}
+    public record VerifyTourRequest(@NotBlank UUID shareToken, @NotBlank String password) {}
+    public record NeedsPasswordResponse(boolean needsPassword, boolean wrong) {}
+    public record PublicTourResponse(){};
 }

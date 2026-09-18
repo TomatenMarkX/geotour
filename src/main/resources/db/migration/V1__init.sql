@@ -27,11 +27,14 @@ create table tours (
 create table photos (
                         id         uuid primary key default gen_random_uuid(),
                         tour_id    uuid not null references tours(id) on delete cascade,
-                        filename   text not null unique,
+                        storage_key text not null unique,
                         lat        double precision not null,
                         lng        double precision not null,
-                        filesize  bigint,
+                        filesize   bigint,
+                        position int not null,
                         created_at timestamptz not null default now()
+                        constraint photos_tour_position_unique unique (tour_id, position)
+                            deferrable initially deferred
 );
 
 create index on tours(owner_id);
