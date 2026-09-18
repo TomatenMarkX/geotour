@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -22,6 +23,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/tours")
+@Transactional(readOnly = true)
 public class TourController {
     private final UserRepository userRepository;
     private final TourRepository tourRepository;
@@ -57,7 +59,7 @@ public class TourController {
 
     @PostMapping("/verify")
     public ResponseEntity<?> verifyTour(@Valid @RequestBody VerifyTourRequest request) {
-        Optional<Tour> tour = tourRepository.findByShareToken(request.shareToken());
+        Optional<Tour> tour = tourRepository.findByShareTokenWithPhotos(request.shareToken());
         if (tour.isEmpty() || !tour.get().isPublic()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
         }
