@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 import java.time.Duration;
@@ -21,20 +22,27 @@ public class StorageService {
     private final S3Presigner s3Presigner;
     private final S3Client s3Client;
     private final String bucket;
-    private final Duration duration;
+    private final Duration uploadDuration;
+    private final Duration downloadDuration;
     private final Logger logger = LoggerFactory.getLogger(StorageService.class);
 
-    public StorageService(S3Presigner s3Presigner, S3Client s3client, @Value("${app.storage.bucket}") String bucket, @Value("${app.storage.duration}") Duration duration) {
+    public StorageService(S3Presigner s3Presigner, S3Client s3client, @Value("${app.storage.bucket}") String bucket, @Value("${app.storage.upload.duration}") Duration uploadDuration, @Value("${app.storage.download.duration}") Duration downloadDuration) {
         this.s3Presigner = s3Presigner;
         this.s3Client = s3client;
         this.bucket = bucket;
-        this.duration = duration;
+        this.uploadDuration = uploadDuration;
+        this.downloadDuration = downloadDuration;
     }
 
     public PresignedUpload presignedUpload(String originalName) {
         String key = "staging/" + UUID.randomUUID().toString() + extensionOf(originalName);
-        var request = PutObjectPresignRequest.builder().signatureDuration(duration).putObjectRequest(r -> r.bucket(bucket).key(key)).build();
+        var request = PutObjectPresignRequest.builder().signatureDuration(uploadDuration).putObjectRequest(r -> r.bucket(bucket).key(key)).build();
         return new PresignedUpload(originalName, key, s3Presigner.presignPutObject(request).url().toString());
+    }
+
+    public String presignedDownload(String key) {
+        var request = GetObjectPresignRequest.builder().signatureDuration(downloadDuration).getObjectRequest(r -> r.bucket(bucket).key(key)).build();
+        return s3Presigner.presignGetObject(request).url().toString();
     }
 
     public boolean isStagingKey(String key) {

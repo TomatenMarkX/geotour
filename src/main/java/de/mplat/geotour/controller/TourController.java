@@ -1,11 +1,13 @@
 package de.mplat.geotour.controller;
 
 import de.mplat.geotour.entity.*;
+import de.mplat.geotour.helper.Mapper;
 import de.mplat.geotour.service.PhotoService;
 import de.mplat.geotour.service.StorageService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,20 +25,21 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/tours")
-@Transactional(readOnly = true)
 public class TourController {
     private final UserRepository userRepository;
     private final TourRepository tourRepository;
     private final StorageService storageService;
     private final PhotoService photoService;
     private final PasswordEncoder encoder;
+    private final Mapper mapper;
 
-    public TourController(UserRepository userRepository, TourRepository tourRepository, StorageService storageService, PhotoService photoService, PasswordEncoder encoder) {
+    public TourController(UserRepository userRepository, TourRepository tourRepository, StorageService storageService, PhotoService photoService, PasswordEncoder encoder, Mapper mapper) {
         this.userRepository = userRepository;
         this.tourRepository = tourRepository;
         this.storageService = storageService;
         this.photoService = photoService;
         this.encoder = encoder;
+        this.mapper = mapper;
     }
 
     @PostMapping("/{tourId}/photos/upload-urls")
@@ -57,6 +60,7 @@ public class TourController {
         }
     }
 
+    @Transactional(readOnly = true)
     @PostMapping("/verify")
     public ResponseEntity<?> verifyTour(@Valid @RequestBody VerifyTourRequest request) {
         Optional<Tour> tour = tourRepository.findByShareTokenWithPhotos(request.shareToken());
@@ -66,10 +70,18 @@ public class TourController {
         if (tour.get().getPasswordHash() == null) {
             return ResponseEntity.status(HttpStatus.OK).body(new NeedsPasswordResponse(false, false));
         }
-        if (!encoder.matches(request.password(), tour.get().getPasswordHash()) || request.password().isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new NeedsPasswordResponse(true, true));
+        String pw = request.password();
+        if (pw == null || pw.isBlank() || !encoder.matches(pw, tour.get().getPasswordHash())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new NeedsPasswordResponse(true, pw != null && !pw.isBlank()));
         }
-        return ResponseEntity.status(HttpStatus.OK).body(null);
+        List<Photo> photos = tour.get().getPhotos();
+
+        return ResponseEntity.status(HttpStatus.OK).body(
+                new PublicTourResponse(
+                        tour.get().getId(),
+                        tour.get().getName(),
+                        mapper.mapPhotosToPublicPhotos(photos)));
     }
 
     @PostMapping
@@ -80,6 +92,7 @@ public class TourController {
     }
 
     @PutMapping("/{tourId}/password")
+    @Transactional
     public ResponseEntity<Void> changeTourPassword(@AuthenticationPrincipal Jwt jwt, @PathVariable("tourId") UUID tourId, @Valid @RequestBody SetPasswordRequest request) {
         Tour tour = requireOwnerTour(tourId, jwt);
         String password = request.password();
@@ -102,7 +115,8 @@ public class TourController {
     public record RegisterPhotoRequest(@NotEmpty List<PhotoService.PhotoRegistration> photos) {}
     public record PhotoResponse(UUID id, String key, double lat, double lng) {}
     public record SetPasswordRequest(String password) {}
-    public record VerifyTourRequest(@NotBlank UUID shareToken, @NotBlank String password) {}
+    public record VerifyTourRequest(@NotNull UUID shareToken, String password) {}
     public record NeedsPasswordResponse(boolean needsPassword, boolean wrong) {}
-    public record PublicTourResponse(){};
+    public record PublicTourResponse(UUID id, String name, List<PublicPhotos> photos){}
+    public record PublicPhotos(UUID id, int position, double lat, double lng, String url){}
 }
