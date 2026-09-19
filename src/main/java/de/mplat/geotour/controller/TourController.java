@@ -19,7 +19,9 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.net.URI;
+import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -32,14 +34,16 @@ public class TourController {
     private final PhotoService photoService;
     private final PasswordEncoder encoder;
     private final Mapper mapper;
+    private final PhotoRepository photoRepository;
 
-    public TourController(UserRepository userRepository, TourRepository tourRepository, StorageService storageService, PhotoService photoService, PasswordEncoder encoder, Mapper mapper) {
+    public TourController(UserRepository userRepository, TourRepository tourRepository, StorageService storageService, PhotoService photoService, PasswordEncoder encoder, Mapper mapper, PhotoRepository photoRepository) {
         this.userRepository = userRepository;
         this.tourRepository = tourRepository;
         this.storageService = storageService;
         this.photoService = photoService;
         this.encoder = encoder;
         this.mapper = mapper;
+        this.photoRepository = photoRepository;
     }
 
     @PostMapping("/{tourId}/photos/upload-urls")
@@ -58,6 +62,12 @@ public class TourController {
         catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         }
+    }
+
+    @GetMapping
+    public ResponseEntity<UserTourResponse> getUserTours(@AuthenticationPrincipal Jwt jwt) {
+        List<Tour> tours = tourRepository.findByOwner_id(UUID.fromString(Objects.requireNonNull(jwt.getSubject())));
+        return ResponseEntity.ok(new UserTourResponse(jwt.getSubject(), mapper.mapToursToTourSummary(tours)));
     }
 
     @Transactional(readOnly = true)
@@ -124,6 +134,17 @@ public class TourController {
         return ResponseEntity.noContent().build();
     }
 
+    @DeleteMapping("/{tourId}/photos/{photoId}")
+    @Transactional
+    public ResponseEntity<Void> deletePhoto(@AuthenticationPrincipal Jwt jwt, @PathVariable("tourId") UUID tourId, @PathVariable("photoId") UUID photoId) {
+        Tour tour = requireOwnerTour(tourId, jwt);
+        Photo photo = photoRepository.findByTourIdAndId(photoId, tourId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        photoRepository.delete(photo);
+        storageService.deleteQuietly(photo.getStorageKey());
+        return ResponseEntity.noContent().build();
+    }
+
 
     @PutMapping("/{tourId}/password")
     @Transactional
@@ -164,4 +185,6 @@ public class TourController {
     public record ChangePrivacyRequest(@NotNull boolean isPublic) {}
     public record ShareResponse(boolean isPublic, UUID shareToken) {}
     public record SetNameRequest(@NotBlank @Size(max = 200) String name) {}
+    public record UserTourResponse(String userId, List<TourSummary> tours) {}
+    public record TourSummary(UUID id, String name, boolean isPublic,  UUID shareToken, boolean hasPassword, Instant createdAt) {}
 }

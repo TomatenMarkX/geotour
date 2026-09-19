@@ -18,4 +18,8 @@ public class Mapper {
     public List<TourController.PublicPhotos> mapPhotosToPublicPhotos(List<Photo> photos) {
         return photos.stream().map(photo -> new TourController.PublicPhotos(photo.getId(), photo.getPosition(), photo.getLat(), photo.getLng(), storageService.presignedDownload(photo.getStorageKey()))).toList();
     }
+
+    public List<TourController.TourSummary> mapToursToTourSummary(List<de.mplat.geotour.entity.Tour> tours) {
+        return tours.stream().map(tour -> new TourController.TourSummary(tour.getId(), tour.getName(), tour.isPublic(), tour.getShareToken(), tour.getPasswordHash() != null, tour.getCreatedAt())).toList();
+    }
 }
