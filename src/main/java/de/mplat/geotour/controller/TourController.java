@@ -15,6 +15,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -129,9 +131,9 @@ public class TourController {
     @Transactional
     public ResponseEntity<Void> deleteTour(@AuthenticationPrincipal Jwt jwt, @PathVariable("tourId") UUID tourId) {
         Tour tour = requireOwnerTour(tourId, jwt);
-        List<String> keys = tour.getPhotos().stream().map(Photo::getStorageKey).toList();
+        List<String> keys = photoRepository.findStorageKeysByTourId(tourId);
         tourRepository.delete(tour);
-        storageService.deleteQuietly(keys);
+        deleteFromStorageAfterCommit(keys);
         return ResponseEntity.noContent().build();
     }
 
@@ -178,6 +180,17 @@ public class TourController {
 
     private Tour requireOwnerTour(UUID tourId, Jwt jwt) {
         return tourRepository.findByIdAndOwner_Id(tourId, userIdOf(jwt)).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+    }
+
+    private void deleteFromStorageAfterCommit(List<String> keys) {
+        if (keys.isEmpty()) return;
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            storageService.deleteQuietly(keys);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override public void afterCommit() { storageService.deleteQuietly(keys); }
+        });
     }
 
     public record CreateTourRequest(@NotBlank @Size(max = 200) String name) {}

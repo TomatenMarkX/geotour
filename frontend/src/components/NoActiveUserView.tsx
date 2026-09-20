@@ -11,9 +11,13 @@ interface NoActiveUserViewProps {
     handleFileChange: (event: ChangeEvent<HTMLInputElement>) => void | Promise<void>;
     files: PendingImage[];
     handleFileDelete: (index: number) => void;
+    /** Identität eines Punktes ist die previewUrl — siehe pointOfPending in App.tsx. */
+    hoveredFileId: string | null;
+    onHoverFile: (fileId: string | null) => void;
+    itemRefs: RefObject<Map<string, HTMLDivElement>>;
 }
 
-const NoActiveUserView = ({handleOpenFileDialog, fileInputRef, handleFileChange, files, handleFileDelete}: NoActiveUserViewProps) => {
+const NoActiveUserView = ({handleOpenFileDialog, fileInputRef, handleFileChange, files, handleFileDelete, hoveredFileId, onHoverFile, itemRefs}: NoActiveUserViewProps) => {
     return (
         <>
             <div className="p-4">
@@ -69,7 +73,19 @@ const NoActiveUserView = ({handleOpenFileDialog, fileInputRef, handleFileChange,
                     files.map((file, index) => (
                         <div
                             key={file.previewUrl}
-                            className="mb-2 flex items-center gap-3 rounded-lg border border-border bg-background p-2.5"
+                            ref={(element) => {
+                                const map = itemRefs.current;
+                                if (!map) return;
+                                if (element) map.set(file.previewUrl, element);
+                                else map.delete(file.previewUrl);
+                            }}
+                            onMouseEnter={() => onHoverFile(file.previewUrl)}
+                            onMouseLeave={() => onHoverFile(null)}
+                            className={`mb-2 flex items-center gap-3 rounded-lg border bg-background p-2.5 transition-colors ${
+                                hoveredFileId === file.previewUrl
+                                    ? "border-orange-400 bg-orange-50 ring-1 ring-orange-300"
+                                    : "border-border"
+                            }`}
                         >
                             <img
                                 src={file.previewUrl}

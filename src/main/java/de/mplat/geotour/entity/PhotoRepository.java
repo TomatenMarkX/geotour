@@ -18,4 +18,7 @@ public interface PhotoRepository extends JpaRepository<Photo, UUID> {
 
     @Query("select max(p.position) from Photo p where p.tour.id = :tourId")
     Optional<Integer> findMaxPositionByTourId(UUID tourId);
+
+    @Query("select p.storageKey from Photo p where p.tour.id = :tourId")
+    List<String> findStorageKeysByTourId(UUID tourId);
 }

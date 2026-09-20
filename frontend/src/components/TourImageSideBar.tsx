@@ -8,6 +8,8 @@ interface TourImageSideBarProps {
     hoveredPhotoId: string | null;
     onSelectPhoto: (photo: TourPhoto) => void;
     onDeletePhoto: (photo: TourPhoto) => void | Promise<void>;
+    /** Meldet Hover in Richtung Karte: Foto-ID beim Betreten, null beim Verlassen. */
+    onHoverPhoto: (photoId: string | null) => void;
     /** Wird von der Karte benutzt, um beim Hover zur passenden Zeile zu scrollen. */
     itemRefs: RefObject<Map<string, HTMLDivElement>>;
 }
@@ -18,6 +20,7 @@ type TourImageRowProps = {
     isHovered: boolean;
     onSelect: () => void;
     onDelete: () => void;
+    onHover: (hovering: boolean) => void;
     itemRefs: RefObject<Map<string, HTMLDivElement>>;
 };
 
@@ -32,6 +35,7 @@ const TourImageRow = ({
                           isHovered,
                           onSelect,
                           onDelete,
+                          onHover,
                           itemRefs,
                       }: TourImageRowProps) => {
     const [loaded, setLoaded] = useState(false);
@@ -53,12 +57,14 @@ const TourImageRow = ({
             className={`mb-2 flex items-center gap-3 rounded-lg border bg-background p-2.5 cursor-pointer transition-colors group
                 ${
                 isSelected
-                    ? "border-orange-400 bg-orange-50 ring-1 ring-orange-300"
+                    ? "border-orange-500 bg-orange-100 ring-2 ring-orange-400"
                     : isHovered
-                        ? "border-primary/40 bg-muted"
-                        : "border-border hover:bg-muted hover:border-primary/30"
+                        ? "border-orange-400 bg-orange-50 ring-1 ring-orange-300"
+                        : "border-border"
             }`}
             onDoubleClick={onSelect}
+            onMouseEnter={() => onHover(true)}
+            onMouseLeave={() => onHover(false)}
         >
             <div className="h-12 w-12 shrink-0 rounded-md overflow-hidden bg-muted relative">
                 {!loaded && <div className="absolute inset-0 animate-pulse bg-muted-foreground/10" />}
@@ -101,6 +107,7 @@ const TourImageSideBar = ({
                               hoveredPhotoId,
                               onSelectPhoto,
                               onDeletePhoto,
+                              onHoverPhoto,
                               itemRefs,
                           }: TourImageSideBarProps) => {
     if (photos.length === 0) {
@@ -117,6 +124,7 @@ const TourImageSideBar = ({
                     isHovered={hoveredPhotoId === photo.id}
                     onSelect={() => onSelectPhoto(photo)}
                     onDelete={() => onDeletePhoto(photo)}
+                    onHover={(hovering) => onHoverPhoto(hovering ? photo.id : null)}
                     itemRefs={itemRefs}
                 />
             ))}

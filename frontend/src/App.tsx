@@ -442,6 +442,9 @@ const App = () => {
                             handleFileChange={handleFileChange}
                             files={files}
                             handleFileDelete={handleFileDelete}
+                            hoveredFileId={hoveredPointId}
+                            onHoverFile={setHoveredPointId}
+                            itemRefs={itemRefs}
                         />
                     )}
                 </aside>
@@ -477,6 +480,7 @@ const App = () => {
                                 hoveredPhotoId={hoveredPointId}
                                 onSelectPhoto={handleSelectPhoto}
                                 onDeletePhoto={handleDeletePhoto}
+                                onHoverPhoto={setHoveredPointId}
                                 itemRefs={itemRefs}
                             />
                         </ScrollArea>
@@ -507,39 +511,42 @@ const App = () => {
                                         trigger={sidebarWidth + tourSideBarWidth + points.length + (activeTour ? 1 : 0)}
                                     />
                                     <FitBounds points={points} />
-                                    {points.map((point) => (
-                                        <CircleMarker
-                                            key={point.id}
-                                            center={[point.lat, point.lng] as [number, number]}
-                                            radius={8}
-                                            pathOptions={{
-                                                color: "#ffffff",
-                                                fillColor:
-                                                    selectedPointId === point.id
-                                                        ? "#f97316"
-                                                        : hoveredPointId === point.id
-                                                            ? "#60a5fa"
+                                    {points.map((point) => {
+                                        const isSelected = selectedPointId === point.id;
+                                        const isHovered = hoveredPointId === point.id;
+                                        return (
+                                            <CircleMarker
+                                                key={point.id}
+                                                center={[point.lat, point.lng] as [number, number]}
+                                                radius={isHovered || isSelected ? 12 : 8}
+                                                pathOptions={{
+                                                    color: isHovered || isSelected ? "#c2410c" : "#ffffff",
+                                                    fillColor: isSelected
+                                                        ? "#ea580c"
+                                                        : isHovered
+                                                            ? "#f97316"
                                                             : "#3b82f6",
-                                                fillOpacity: 1,
-                                                weight: 2,
-                                            }}
-                                            eventHandlers={{
-                                                dblclick: (event) => {
-                                                    event.originalEvent.stopPropagation();
-                                                    setSelectedPointId(point.id);
-                                                },
-                                                mouseover: () => {
-                                                    setHoveredPointId(point.id);
-                                                    itemRefs.current
-                                                        .get(point.id)
-                                                        ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-                                                },
-                                                mouseout: () => setHoveredPointId(null),
-                                            }}
-                                        >
-                                            <Popup>{point.label}</Popup>
-                                        </CircleMarker>
-                                    ))}
+                                                    fillOpacity: 1,
+                                                    weight: isHovered || isSelected ? 3 : 2,
+                                                }}
+                                                eventHandlers={{
+                                                    dblclick: (event) => {
+                                                        event.originalEvent.stopPropagation();
+                                                        setSelectedPointId(point.id);
+                                                    },
+                                                    mouseover: () => {
+                                                        setHoveredPointId(point.id);
+                                                        itemRefs.current
+                                                            .get(point.id)
+                                                            ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                                                    },
+                                                    mouseout: () => setHoveredPointId(null),
+                                                }}
+                                            >
+                                                <Popup>{point.label}</Popup>
+                                            </CircleMarker>
+                                        );
+                                    })}
                                 </MapContainer>
                             </div>
                         )}
