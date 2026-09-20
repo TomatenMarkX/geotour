@@ -1,10 +1,37 @@
-HELP.md
+### Secrets und lokale Konfiguration ###
+# Faustregel: nichts, was einen Schlüssel, ein Passwort oder einen Host enthält.
+.env
+.env.*
+*.env.example
+*.env.development
+*.local
+src/main/resources/application.properties
+src/main/resources/application-*.properties
+**/application-local.properties
+*.pem
+*.key
+*.p12
+*.jks
+secrets/
+
+### Maven ###
 target/
 .mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
+HELP.md
 
-### STS ###
+### Node – Sicherheitsnetz, maßgeblich ist frontend/.gitignore ###
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+
+### IDEs ###
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.junie/
 .apt_generated
 .classpath
 .factorypath
@@ -12,27 +39,12 @@ target/
 .settings
 .springBeans
 .sts4-cache
-
-### IntelliJ IDEA ###
-.idea
-*.iws
-*.iml
-*.ipr
-
-### NetBeans ###
 /nbproject/private/
 /nbbuild/
-/dist/
 /nbdist/
 /.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
 
-### VS Code ###
-.vscode/
-
-.env
-src/main/resources/application.properties
-compose.yaml
-
+### OS und Logs ###
+.DS_Store
+Thumbs.db
+*.log
