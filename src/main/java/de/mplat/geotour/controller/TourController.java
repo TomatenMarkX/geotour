@@ -98,15 +98,16 @@ public class TourController {
     }
 
     @PutMapping("/{tourId}/privacy")
+    @Transactional
     public ShareResponse changeTourPrivacy(@AuthenticationPrincipal Jwt jwt, @PathVariable("tourId") UUID tourId, @Valid @RequestBody ChangePrivacyRequest request) {
         Tour tour = requireOwnerTour(tourId, jwt);
         tour.setPublic(request.isPublic());
-        if (request.isPublic() && tour.getShareToken() == null) {
-            tour.setShareToken(UUID.randomUUID());
-            return new ShareResponse(true, tour.getShareToken());
+        if (request.isPublic()) {
+            if (tour.getShareToken() == null) tour.setShareToken(UUID.randomUUID());
+        } else {
+            tour.setShareToken(null);
         }
-        tour.setShareToken(null);
-        return new ShareResponse(request.isPublic(), tour.getShareToken());
+        return new ShareResponse(tour.isPublic(), tour.getShareToken());
     }
 
     @PostMapping("/{tourId}/privacy/rotate")
@@ -137,8 +138,8 @@ public class TourController {
     @DeleteMapping("/{tourId}/photos/{photoId}")
     @Transactional
     public ResponseEntity<Void> deletePhoto(@AuthenticationPrincipal Jwt jwt, @PathVariable("tourId") UUID tourId, @PathVariable("photoId") UUID photoId) {
-        Tour tour = requireOwnerTour(tourId, jwt);
-        Photo photo = photoRepository.findByTourIdAndId(photoId, tourId)
+        requireOwnerTour(tourId, jwt);
+        Photo photo = photoRepository.findByTourIdAndId(tourId, photoId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         photoRepository.delete(photo);
         storageService.deleteQuietly(photo.getStorageKey());
@@ -165,7 +166,7 @@ public class TourController {
     }
 
     private UUID userIdOf(Jwt jwt) {
-        return UUID.fromString(jwt.getSubject());
+        return UUID.fromString(Objects.requireNonNull(jwt.getSubject()));
     }
 
     private Tour requireOwnerTour(UUID tourId, Jwt jwt) {
@@ -182,7 +183,7 @@ public class TourController {
     public record NeedsPasswordResponse(boolean needsPassword, boolean wrong) {}
     public record PublicTourResponse(UUID id, String name, List<PublicPhotos> photos){}
     public record PublicPhotos(UUID id, int position, double lat, double lng, String url){}
-    public record ChangePrivacyRequest(@NotNull boolean isPublic) {}
+    public record ChangePrivacyRequest(boolean isPublic) {}
     public record ShareResponse(boolean isPublic, UUID shareToken) {}
     public record SetNameRequest(@NotBlank @Size(max = 200) String name) {}
     public record UserTourResponse(String userId, List<TourSummary> tours) {}

@@ -79,7 +79,7 @@ public class StorageService {
 
     public void deleteQuietly(List<String> keys) {
         if (keys == null || keys.isEmpty()) return;
-        for (int from = 0; from <= keys.size(); from += 1000) {
+        for (int from = 0; from < keys.size(); from += 1000) {
             List<ObjectIdentifier> identifiers = keys.subList(from, Math.min(from + 1000, keys.size())).stream().map(
                     key -> ObjectIdentifier.builder().key(key).build()
             ).toList();
@@ -87,8 +87,6 @@ public class StorageService {
                 DeleteObjectsResponse response = s3Client.deleteObjects(builder -> builder.bucket(bucket).delete(d -> d.objects(identifiers).quiet(true)));
                 if (response.hasErrors()) {
                     response.errors().forEach(error -> logger.warn("Konnte {} nicht löschen: {}", error.key(), error.code()));
-                } else {
-                    logger.info("Löschvorgang erfolgreich");
                 }
             }
             catch (RuntimeException e) {
