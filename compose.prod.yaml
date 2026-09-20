@@ -1,0 +1,87 @@
+# Vollständiger Stack. Bewusst NICHT compose.yaml — die bleibt für die
+# Entwicklung reserviert, weil spring-boot-docker-compose sie beim Start aus
+# der IDE automatisch hochfährt. Läge hier der ganze Stack drin, würde das
+# Backend beim lokalen Start Backend und Frontend gleich mitstarten.
+#
+#   docker compose -f compose.prod.yaml up -d --build
+#   docker compose -f compose.prod.yaml logs -f backend
+#   docker compose -f compose.prod.yaml down
+
+name: geotour
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-geotour}
+      POSTGRES_USER: ${POSTGRES_USER:-geotour}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD fehlt in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-geotour} -d ${POSTGRES_DB:-geotour}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+    # Kein ports-Eintrag: die Datenbank ist nur im Compose-Netz erreichbar.
+    # Zum Debuggen bei Bedarf "ports: [127.0.0.1:5432:5432]" ergänzen.
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Spring Boot Relaxed Binding: APP_JWT_SECRET -> app.jwt.secret
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-geotour}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-geotour}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+
+      # Ohne das versucht spring-boot-docker-compose, im Container Compose zu starten.
+      SPRING_DOCKER_COMPOSE_ENABLED: "false"
+
+      # Damit Spring die Redirect-URI aus den X-Forwarded-*-Headern baut und
+      # nicht aus http://backend:8080 — sonst schlägt der Google-Login fehl.
+      SERVER_FORWARD_HEADERS_STRATEGY: framework
+
+      APP_FRONTEND_URL: ${APP_FRONTEND_URL:-http://localhost}
+      APP_COOKIE_SECURE: ${APP_COOKIE_SECURE:-false}
+      APP_JWT_SECRET: ${APP_JWT_SECRET:?APP_JWT_SECRET fehlt in .env}
+
+      APP_STORAGE_ENDPOINT: ${APP_STORAGE_ENDPOINT:?fehlt in .env}
+      APP_STORAGE_REGION: ${APP_STORAGE_REGION:?fehlt in .env}
+      APP_STORAGE_BUCKET: ${APP_STORAGE_BUCKET:?fehlt in .env}
+      APP_STORAGE_KEY_ID: ${APP_STORAGE_KEY_ID:?fehlt in .env}
+      APP_STORAGE_APP_KEY: ${APP_STORAGE_APP_KEY:?fehlt in .env}
+      APP_STORAGE_UPLOAD_DURATION: ${APP_STORAGE_UPLOAD_DURATION:-PT10M}
+      APP_STORAGE_DOWNLOAD_DURATION: ${APP_STORAGE_DOWNLOAD_DURATION:-PT1H}
+
+      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?fehlt in .env}
+      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?fehlt in .env}
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost:8080/actuator/health" ]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 40s
+    restart: unless-stopped
+    # Auch hier kein ports-Eintrag — der Zugang läuft ausschließlich über nginx.
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Leer = relative Pfade, nginx proxyt /auth, /tours, /oauth2, /login
+        # an das Backend. Damit sind Frontend und API dieselbe Origin:
+        # kein CORS nötig, und das SameSite=Lax-Cookie geht mit.
+        VITE_API_URL: ""
+    depends_on: {backend: {condition: service_healthy}}
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    restart: unless-stopped
+
+volumes:
+  pgdata:

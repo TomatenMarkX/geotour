@@ -365,6 +365,7 @@ const App = () => {
                         {activeTour && (
                             <TourSettingsDialog
                                 tour={activeTour}
+                                photoCount={photos.length}
                                 onRename={handleRenameTour}
                                 onVisibilityChange={handleVisibilityChange}
                                 onDelete={handleDeleteTour}
