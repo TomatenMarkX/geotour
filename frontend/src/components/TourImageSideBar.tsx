@@ -1,112 +1,94 @@
-import { useEffect, useRef, useState } from "react";
-import { ImageFile, Tour } from "@/types";
+import { useCallback, useState, type RefObject } from "react";
 import { Trash } from "lucide-react";
-import { fetchImageBlob } from "@/services/tourService";
+import type { TourPhoto } from "@/types";
 
 interface TourImageSideBarProps {
-    activeTour: Tour | null;
-    setSelectedFile: (image: ImageFile) => Promise<void>;
-    handleDeleteTourImage: (image: ImageFile) => void;
-    selectedFile: ImageFile | null;
-    hoveredFile: ImageFile | null;
-    token: string | undefined;
+    photos: TourPhoto[];
+    selectedPhotoId: string | null;
+    hoveredPhotoId: string | null;
+    onSelectPhoto: (photo: TourPhoto) => void;
+    onDeletePhoto: (photo: TourPhoto) => void | Promise<void>;
+    /** Wird von der Karte benutzt, um beim Hover zur passenden Zeile zu scrollen. */
+    itemRefs: RefObject<Map<string, HTMLDivElement>>;
 }
 
-// Einzelne Zeile — lädt ihr Bild selbst wenn sichtbar
-const TourImageRow = ({
-                          image,
-                          index,
-                          isSelected,
-                          isHovered,
-                          token,
-                          onDoubleClick,
-                          onDelete,
-                      }: {
-    image: ImageFile;
-    index: number;
+type TourImageRowProps = {
+    photo: TourPhoto;
     isSelected: boolean;
     isHovered: boolean;
-    token: string | undefined;
-    onDoubleClick: () => void;
+    onSelect: () => void;
     onDelete: () => void;
-}) => {
-    const [thumbUrl, setThumbUrl] = useState<string | null>(
-        image.previewUrl?.startsWith("blob:") ? image.previewUrl : null
+    itemRefs: RefObject<Map<string, HTMLDivElement>>;
+};
+
+/**
+ * Einzelne Zeile. Das Bild kommt als presigned URL direkt vom Objektspeicher —
+ * kein Blob-Download mehr, also auch kein IntersectionObserver und kein
+ * revokeObjectURL. Das Verzögern übernimmt der Browser über loading="lazy".
+ */
+const TourImageRow = ({
+                          photo,
+                          isSelected,
+                          isHovered,
+                          onSelect,
+                          onDelete,
+                          itemRefs,
+                      }: TourImageRowProps) => {
+    const [loaded, setLoaded] = useState(false);
+
+    // Callback-Ref: trägt die Zeile in die gemeinsame Map ein und wieder aus.
+    const setRowRef = useCallback(
+        (element: HTMLDivElement | null) => {
+            const map = itemRefs.current;
+            if (!map) return;
+            if (element) map.set(photo.id, element);
+            else map.delete(photo.id);
+        },
+        [itemRefs, photo.id],
     );
-    const ref = useRef<HTMLDivElement>(null);
-    const loadedRef = useRef(false);
-
-    useEffect(() => {
-        if (thumbUrl || loadedRef.current) return;
-
-        const el = ref.current;
-        if (!el) return;
-
-        const observer = new IntersectionObserver(
-            async (entries) => {
-                if (!entries[0].isIntersecting) return;
-                observer.disconnect();
-                if (loadedRef.current) return;
-                loadedRef.current = true;
-
-                const filename = image.filename ?? image.file.name;
-                const url = await fetchImageBlob(filename, async () => token);
-                if (url) setThumbUrl(url);
-            },
-            { rootMargin: "300px" } // 300px Vorsprung
-        );
-
-        observer.observe(el);
-        return () => observer.disconnect();
-    }, [image, token, thumbUrl]);
-
-    // Blob-URL freigeben beim Unmount
-    useEffect(() => {
-        return () => {
-            if (thumbUrl?.startsWith("blob:")) {
-                URL.revokeObjectURL(thumbUrl);
-            }
-        };
-    }, [thumbUrl]);
 
     return (
         <div
-            ref={ref}
+            ref={setRowRef}
             className={`mb-2 flex items-center gap-3 rounded-lg border bg-background p-2.5 cursor-pointer transition-colors group
-                ${isSelected
-                ? "border-orange-400 bg-orange-50 ring-1 ring-orange-300"
-                : isHovered
-                    ? "border-primary/40 bg-muted"
-                    : "border-border hover:bg-muted hover:border-primary/30"
+                ${
+                isSelected
+                    ? "border-orange-400 bg-orange-50 ring-1 ring-orange-300"
+                    : isHovered
+                        ? "border-primary/40 bg-muted"
+                        : "border-border hover:bg-muted hover:border-primary/30"
             }`}
-            onDoubleClick={onDoubleClick}
+            onDoubleClick={onSelect}
         >
-            {/* Thumbnail mit Skeleton */}
             <div className="h-12 w-12 shrink-0 rounded-md overflow-hidden bg-muted relative">
-                {!thumbUrl && (
-                    <div className="absolute inset-0 animate-pulse bg-muted-foreground/10" />
-                )}
-                {thumbUrl && (
-                    <img
-                        src={thumbUrl}
-                        alt={image.file.name}
-                        className="h-full w-full object-cover"
-                    />
-                )}
+                {!loaded && <div className="absolute inset-0 animate-pulse bg-muted-foreground/10" />}
+                <img
+                    src={photo.url}
+                    alt={`Foto ${photo.position + 1}`}
+                    loading="lazy"
+                    decoding="async"
+                    onLoad={() => setLoaded(true)}
+                    className={`h-full w-full object-cover transition-opacity ${
+                        loaded ? "opacity-100" : "opacity-0"
+                    }`}
+                />
             </div>
 
             <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-foreground break-words">
-                    {image.file.name}
+                    Foto {photo.position + 1}
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                    {image.file.size > 0 ? `${(image.file.size / 1024).toFixed(1)} KB` : `Bild ${index + 1}`}
+                    {photo.lat.toFixed(5)}, {photo.lng.toFixed(5)}
                 </p>
             </div>
 
             <Trash
                 className="h-4 w-4 shrink-0 text-muted-foreground/30 hover:text-destructive transition-colors cursor-pointer"
-                onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                onClick={(event) => {
+                    event.stopPropagation();
+                    void onDelete();
+                }}
             />
         </div>
     );
@@ -114,33 +96,28 @@ const TourImageRow = ({
 
 // ── Hauptkomponente ───────────────────────────────────────────────────────────
 const TourImageSideBar = ({
-                              activeTour,
-                              setSelectedFile,
-                              handleDeleteTourImage,
-                              selectedFile,
-                              hoveredFile,
-                              token,
+                              photos,
+                              selectedPhotoId,
+                              hoveredPhotoId,
+                              onSelectPhoto,
+                              onDeletePhoto,
+                              itemRefs,
                           }: TourImageSideBarProps) => {
-    if (!activeTour || !activeTour.images || activeTour.images.length === 0) {
-        return (
-            <div className="py-8 text-sm text-muted-foreground">
-                Keine Bilder in dieser Tour
-            </div>
-        );
+    if (photos.length === 0) {
+        return <div className="py-8 text-sm text-muted-foreground">Keine Bilder in dieser Tour</div>;
     }
 
     return (
         <>
-            {activeTour.images.map((image, index) => (
+            {photos.map((photo) => (
                 <TourImageRow
-                    key={`${activeTour.id}-${index}`}
-                    image={image}
-                    index={index}
-                    isSelected={selectedFile === image}
-                    isHovered={hoveredFile === image}
-                    token={token}
-                    onDoubleClick={() => setSelectedFile(image)}
-                    onDelete={() => handleDeleteTourImage(image)}
+                    key={photo.id}
+                    photo={photo}
+                    isSelected={selectedPhotoId === photo.id}
+                    isHovered={hoveredPhotoId === photo.id}
+                    onSelect={() => onSelectPhoto(photo)}
+                    onDelete={() => onDeletePhoto(photo)}
+                    itemRefs={itemRefs}
                 />
             ))}
         </>

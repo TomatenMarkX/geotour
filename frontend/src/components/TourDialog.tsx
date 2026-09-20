@@ -1,9 +1,9 @@
 import { Camera, Upload } from "lucide-react";
-import { useRef } from "react";
+import { useRef, type ChangeEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { ImageFile } from "@/types";
+import type { PendingImage, UploadProgress } from "@/types";
 import {
     Dialog,
     DialogClose,
@@ -17,12 +17,12 @@ import {
 interface TourDialogProps {
     open: boolean;
     tourName: string;
-    pendingTourImages: ImageFile[];
+    pendingTourImages: PendingImage[];
     onTourNameChange: (name: string) => void;
-    onFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
-    onCreate: () => void;
+    onFileChange: (event: ChangeEvent<HTMLInputElement>) => void | Promise<void>;
+    onCreate: () => void | Promise<void>;
     onClose: () => void;
-    uploadedProgress?: { uploaded: number; total: number } | null
+    uploadedProgress?: UploadProgress | null;
 }
 
 const TourDialog = ({
@@ -36,7 +36,7 @@ const TourDialog = ({
                         uploadedProgress,
                     }: TourDialogProps) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const isUploading  = uploadedProgress !== null && uploadedProgress !== undefined;
+    const isUploading = uploadedProgress !== null && uploadedProgress !== undefined;
 
     return (
         <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
@@ -53,6 +53,7 @@ const TourDialog = ({
                         placeholder="Name der Tour"
                         value={tourName}
                         onChange={(e) => onTourNameChange(e.target.value)}
+                        disabled={isUploading}
                     />
                 </div>
 
@@ -68,6 +69,7 @@ const TourDialog = ({
                         <Button
                             size="sm"
                             className="mt-3 gap-1.5"
+                            disabled={isUploading}
                             onClick={() => fileInputRef.current?.click()}
                         >
                             <Camera className="h-3.5 w-3.5" />
@@ -88,7 +90,7 @@ const TourDialog = ({
                         </p>
                     )}
                     {isUploading && uploadedProgress && (
-                        <div className="space-y-1.5">
+                        <div className="mt-3 space-y-1.5">
                             <div className="flex justify-between text-xs text-muted-foreground">
                                 <span>Bilder werden hochgeladen…</span>
                                 <span>{uploadedProgress.uploaded} / {uploadedProgress.total}</span>
@@ -102,10 +104,12 @@ const TourDialog = ({
 
                 <DialogFooter>
                     <DialogClose asChild>
-                        <Button onClick={onClose} variant="outline">Abbrechen</Button>
+                        <Button onClick={onClose} variant="outline" disabled={isUploading}>
+                            Abbrechen
+                        </Button>
                     </DialogClose>
-                    <Button onClick={onCreate} disabled={!!uploadedProgress}>
-                        {uploadedProgress ? "Wird hochgeladen…" : "Erstellen"}
+                    <Button onClick={() => void onCreate()} disabled={isUploading || !tourName.trim()}>
+                        {isUploading ? "Wird hochgeladen…" : "Erstellen"}
                     </Button>
                 </DialogFooter>
             </DialogContent>

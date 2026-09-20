@@ -1,16 +1,15 @@
-import {Ban, Camera, Image, MapPin, Upload} from "lucide-react";
-import {Button} from "@/components/ui/button.tsx";
-import {Separator} from "@/components/ui/separator.tsx";
-import {ScrollArea} from "@/components/ui/scroll-area.tsx";
-import {ImageFile} from "@/types";
-import React from "react";
-
+import { Ban, Camera, Image, MapPin, Upload } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import type { PendingImage } from "@/types";
+import type { ChangeEvent, RefObject } from "react";
 
 interface NoActiveUserViewProps {
     handleOpenFileDialog: () => void;
-    fileInputRef: React.RefObject<HTMLInputElement>;
-    handleFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
-    files: ImageFile[];
+    fileInputRef: RefObject<HTMLInputElement>;
+    handleFileChange: (event: ChangeEvent<HTMLInputElement>) => void | Promise<void>;
+    files: PendingImage[];
     handleFileDelete: (index: number) => void;
 }
 
@@ -69,7 +68,7 @@ const NoActiveUserView = ({handleOpenFileDialog, fileInputRef, handleFileChange,
                 ) : (
                     files.map((file, index) => (
                         <div
-                            key={index}
+                            key={file.previewUrl}
                             className="mb-2 flex items-center gap-3 rounded-lg border border-border bg-background p-2.5"
                         >
                             <img
@@ -86,12 +85,12 @@ const NoActiveUserView = ({handleOpenFileDialog, fileInputRef, handleFileChange,
                                     {(file.file.size / 1024).toFixed(1)} KB
                                 </p>
                                 <p className="text-xs text-muted-foreground">
-                                    x: {file.lng} / y: {file.lat}
+                                    {file.lat.toFixed(5)}, {file.lng.toFixed(5)}
                                 </p>
                             </div>
 
                             <Ban
-                                className="h-4 w-4 shrink-0 text-muted-foreground/50"
+                                className="h-4 w-4 shrink-0 cursor-pointer text-muted-foreground/50 transition-colors hover:text-destructive"
                                 onClick={() => handleFileDelete(index)}
                             />
                         </div>

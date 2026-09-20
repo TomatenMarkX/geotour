@@ -33,27 +33,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { Tour } from "@/types";
-import {regenerateShareToken, setTourPassword} from "@/services/tourService.ts";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
+import type { TourSummary } from "@/types";
+import { rotateShareToken, setTourPassword, shareUrl as buildShareUrl } from "@/services/tourService";
 import { Switch } from "@/components/ui/switch";
 
 interface TourSettingsDialogProps {
-    tour: Tour;
+    tour: TourSummary;
+    /** Fotos hängen nicht mehr an der Tour — die Zahl kommt aus der aktiven Tour in App.tsx. */
+    photoCount: number;
     onRename: (tourId: string, newName: string) => Promise<void>;
     onVisibilityChange: (tourId: string, isPublic: boolean) => Promise<void>;
-    onDelete: (tour: Tour) => Promise<void>;
+    onDelete: (tour: TourSummary) => Promise<void>;
     trigger?: React.ReactNode;
 }
 
 export function TourSettingsDialog({
                                        tour,
+                                       photoCount,
                                        onRename,
                                        onVisibilityChange,
                                        onDelete,
@@ -62,31 +58,26 @@ export function TourSettingsDialog({
     const [open, setOpen] = React.useState(false);
     const [name, setName] = React.useState(tour.name);
     const [password, setPassword] = React.useState<string | null>(null);
-    const [isPublic, setIsPublic] = React.useState(tour.is_public);
-    const [shareToken, setShareToken] = React.useState<string | null>(tour.share_token);
+    const [isPublic, setIsPublic] = React.useState(tour.isPublic);
+    const [shareToken, setShareToken] = React.useState<string | null>(tour.shareToken);
     const [copied, setCopied] = React.useState(false);
     const [savingName, setSavingName] = React.useState(false);
     const [savingPassword, setSavingPassword] = React.useState(false);
     const [savingVisibility, setSavingVisibility] = React.useState(false);
     const [regenerating, setRegenerating] = React.useState(false);
     const [deleting, setDeleting] = React.useState(false);
-    const [expiry, setExpiry] = React.useState("never");
-    const [passwordProtected, setPasswordProtected] = React.useState(false);
+    const [passwordProtected, setPasswordProtected] = React.useState(tour.hasPassword);
 
     React.useEffect(() => {
         setName(tour.name);
-        setIsPublic(tour.is_public);
-        setShareToken(tour.share_token);
-    }, [tour.id, tour.name, tour.is_public, tour.share_token]);
+        setIsPublic(tour.isPublic);
+        setShareToken(tour.shareToken);
+        setPasswordProtected(tour.hasPassword);
+    }, [tour.id, tour.name, tour.isPublic, tour.shareToken, tour.hasPassword]);
 
-    const shareUrl = shareToken
-        ? `${window.location.origin}/tour/${shareToken}`
-        : null;
+    const shareUrl = shareToken ? buildShareUrl(shareToken) : null;
 
     const handleCopy = () => {
-        console.log("isSecureContext:", window.isSecureContext);
-        console.log("clipboard available:", !!navigator.clipboard);
-        console.log("shareUrl:", shareUrl);
         if (!shareUrl) return;
 
         if (navigator.clipboard && window.isSecureContext) {
@@ -97,6 +88,7 @@ export function TourSettingsDialog({
             return;
         }
 
+        // Fallback für http — die Clipboard API gibt es nur im Secure Context.
         const textArea = document.createElement("textarea");
         textArea.value = shareUrl;
         textArea.style.position = "fixed";
@@ -119,8 +111,8 @@ export function TourSettingsDialog({
         setRegenerating(true);
         setCopied(false);
         try {
-            const newToken = await regenerateShareToken(tour.id);
-            setShareToken(newToken);
+            const state = await rotateShareToken(tour.id);
+            setShareToken(state.shareToken);
         } finally {
             setRegenerating(false);
         }
@@ -154,7 +146,7 @@ export function TourSettingsDialog({
             setPassword(null);
             await setTourPassword(tour.id, null);
         }
-    }
+    };
 
     const handleVisibilityChange = async (next: boolean) => {
         setIsPublic(next);
@@ -196,7 +188,7 @@ export function TourSettingsDialog({
                     <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_30%,rgba(0,0,0,0.55))]" />
                     <div className="absolute bottom-3 left-5 flex items-center gap-2 text-xs font-medium text-white/70">
                         <ImageIcon className="h-3.5 w-3.5" />
-                        {tour.images.length} Bild{tour.images.length === 1 ? "" : "er"}
+                        {photoCount} Bild{photoCount === 1 ? "" : "er"}
                     </div>
                 </div>
 
@@ -329,27 +321,6 @@ export function TourSettingsDialog({
 
                                 <div className="h-px bg-neutral-200 dark:bg-neutral-800" />
 
-                                {/* Expiry */}
-                                <div className="space-y-2">
-                                    <Label className="text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
-                                        Gültig bis
-                                    </Label>
-                                    <Select value={expiry} onValueChange={setExpiry}>
-                                        <SelectTrigger className="h-10 border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-950">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="1h">1 Stunde</SelectItem>
-                                            <SelectItem value="24h">24 Stunden</SelectItem>
-                                            <SelectItem value="7d">7 Tage</SelectItem>
-                                            <SelectItem value="30d">30 Tage</SelectItem>
-                                            <SelectItem value="never">Unbegrenzt</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                <div className="h-px bg-neutral-200 dark:bg-neutral-800" />
-
                                 {/* Password protect */}
                                 <div className="flex items-center justify-between">
                                     <div className="space-y-0.5">
@@ -364,12 +335,13 @@ export function TourSettingsDialog({
                                     <div className="relative">
                                         <Input
                                             id="password-input"
+                                            type="password"
                                             value={password ?? ""}
                                             onChange={(e) => setPassword(e.target.value)}
                                             onBlur={handlePasswordBlur}
                                             onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
                                             className="h-11 border-neutral-200 bg-neutral-50 text-base pr-8 focus-visible:ring-neutral-900 dark:border-neutral-800 dark:bg-neutral-900 dark:focus-visible:ring-neutral-100"
-                                            placeholder="Passwort eingeben"
+                                            placeholder={tour.hasPassword ? "Neues Passwort setzen" : "Passwort eingeben"}
                                             disabled={savingPassword}
                                         />
                                         {savingPassword && (
@@ -411,7 +383,7 @@ export function TourSettingsDialog({
                                     <AlertDialogHeader>
                                         <AlertDialogTitle>Tour wirklich löschen?</AlertDialogTitle>
                                         <AlertDialogDescription>
-                                            „{tour.name}" und alle {tour.images.length} Bilder werden dauerhaft gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.
+                                            „{tour.name}" und alle {photoCount} Bilder werden dauerhaft gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.
                                         </AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>

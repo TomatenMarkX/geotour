@@ -24,7 +24,7 @@ public class Tour {
     private boolean isPublic;
 
     @OneToMany(mappedBy = "tour", fetch = FetchType.LAZY)
-    @OrderBy("createdAt ASC")
+    @OrderBy("position ASC")
     private List<Photo> photos = new ArrayList<>();
 
     @Column(name = "share_token", unique = true)
