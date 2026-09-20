@@ -47,14 +47,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   // Einzige Quelle der Wahrheit ist die Session im api-Modul.
-  useEffect(
-    () =>
-      subscribeSession((next) => {
-        setSession(next);
-        setStatus(next ? "authenticated" : "anonymous");
-      }),
-    [],
-  );
+  useEffect(() => {
+    const unsubscribe = subscribeSession((next) => {
+      setSession(next);
+      setStatus(next ? "authenticated" : "anonymous");
+    });
+
+    // AuthCallback läuft als Kind vor diesem Effect und hat den Token aus
+    // dem Fragment womöglich schon übernommen — dieses publish() lief ins
+    // Leere, weil noch kein Listener da war. Deshalb einmal nachziehen.
+    const adopted = currentSession();
+    if (adopted) {
+      setSession(adopted);
+      setStatus("authenticated");
+    }
+
+    return unsubscribe;
+  }, []);
 
   // Beim ersten Laden aus dem Refresh-Cookie wiederherstellen.
   useEffect(() => {
