@@ -135,6 +135,13 @@ public class TourController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/{tourId}/photos")
+    @Transactional(readOnly = true)
+    public List<PublicPhotos> getPhotos(@AuthenticationPrincipal Jwt jwt, @PathVariable("tourId") UUID tourId) {
+        Tour tour = requireOwnerTour(tourId, jwt);
+        return mapper.mapPhotosToPublicPhotos(tour.getPhotos());
+    }
+
     @DeleteMapping("/{tourId}/photos/{photoId}")
     @Transactional
     public ResponseEntity<Void> deletePhoto(@AuthenticationPrincipal Jwt jwt, @PathVariable("tourId") UUID tourId, @PathVariable("photoId") UUID photoId) {
