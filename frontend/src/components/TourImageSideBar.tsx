@@ -1,6 +1,7 @@
-import { useCallback, useState, type RefObject } from "react";
+import { useCallback, type RefObject } from "react";
 import { Trash } from "lucide-react";
 import type { TourPhoto } from "@/types";
+import { FileImage } from "lucide-react";
 
 interface TourImageSideBarProps {
     photos: TourPhoto[];
@@ -38,7 +39,6 @@ const TourImageRow = ({
                           onHover,
                           itemRefs,
                       }: TourImageRowProps) => {
-    const [loaded, setLoaded] = useState(false);
 
     // Callback-Ref: trägt die Zeile in die gemeinsame Map ein und wieder aus.
     const setRowRef = useCallback(
@@ -67,16 +67,8 @@ const TourImageRow = ({
             onMouseLeave={() => onHover(false)}
         >
             <div className="h-12 w-12 shrink-0 rounded-md overflow-hidden bg-muted relative">
-                {!loaded && <div className="absolute inset-0 animate-pulse bg-muted-foreground/10" />}
-                <img
-                    src={photo.url}
-                    alt={`Foto ${photo.position + 1}`}
-                    loading="lazy"
-                    decoding="async"
-                    onLoad={() => setLoaded(true)}
-                    className={`h-full w-full object-cover transition-opacity ${
-                        loaded ? "opacity-100" : "opacity-0"
-                    }`}
+                <FileImage
+                    className="h-5 w-5 text-muted-foreground"
                 />
             </div>
 

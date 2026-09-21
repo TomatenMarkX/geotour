@@ -26,13 +26,16 @@ import TourImageSideBar from "@/components/TourImageSideBar";
 import TourDialog from "@/components/TourDialog";
 import NoActiveUserView from "@/components/NoActiveUserView";
 import { TourSettingsDialog } from "@/components/TourSettingsDialog";
+import PhotoDialog from "@/components/ui/PhotoDialog.tsx";
+import {
+    DropdownMenu,
+    DropdownMenuContent, DropdownMenuGroup,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
-/**
- * Gemeinsamer Nenner für die Karte. Links davon stehen zwei verschiedene
- * Quellen: lokal ausgewählte Bilder (blob:-Vorschau, noch nicht hochgeladen)
- * und Fotos vom Server (presigned https-URL). Die Karte interessiert der
- * Unterschied nicht.
- */
 type MapPoint = {
     id: string;
     lat: number;
@@ -85,6 +88,7 @@ const App = () => {
     const [hoveredPointId, setHoveredPointId] = useState<string | null>(null);
 
     const [tourDialogOpen, setTourDialogOpen] = useState(false);
+    const [photoDialogOpen, setPhotoDialogOpen] = useState(false);
     const [tourName, setTourName] = useState("");
     const [tourLinkCopied, setTourLinkCopied] = useState(false);
     const [uploadedProgress, setUploadedProgress] = useState<UploadProgress | null>(null);
@@ -231,6 +235,25 @@ const App = () => {
             await handleLoadTours();
         } catch (cause: unknown) {
             setError(`Tour konnte nicht angelegt werden: ${String(cause)}`);
+        } finally {
+            setUploadedProgress(null);
+        }
+    };
+
+    const handleAddPhoto = async () => {
+        try {
+            if (pendingTourImages.length > 0) {
+                setUploadedProgress({ uploaded:0, total: pendingTourImages.length });
+                await uploadPhotos(activeTour.id, pendingTourImages, setUploadedProgress);
+            }
+            revokePreviews(pendingTourImages);
+            setPendingTourImages([]);
+            setPhotoDialogOpen(false)
+            setTourName("");
+            await handleLoadTours();
+        }
+        catch (cause: unknown) {
+            setError(`Fehler beim Hochladen der Fotos: ${String(cause)}`);
         } finally {
             setUploadedProgress(null);
         }
@@ -466,10 +489,45 @@ const App = () => {
                     >
                         <div className="flex shrink-0 items-center justify-between px-4 py-3">
                             <h2 className="truncate text-sm font-semibold text-foreground">{activeTour?.name}</h2>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="outline" size="sm" className="gap-1.5">
+                                        <Plus className="h-4 w-4 text-muted-foreground" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent className="w-40" align="start">
+                                    <DropdownMenuGroup>
+                                        <DropdownMenuLabel>Bilder hinzufügen</DropdownMenuLabel>
+                                        <DropdownMenuItem disabled>
+                                            Bilder am Ende hinzufügen
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem disabled>
+                                            Bilder am Anfang hinzufügen
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem disabled>
+                                            Bilder in passende Reihenfolge hinzufügen
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem disabled>
+                                            Erweiterte Anzeige
+                                        </DropdownMenuItem>
+                                    </DropdownMenuGroup>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+
+
                             <Button variant="ghost" size="sm" onClick={() => setActiveTour(null)}>
                                 Schließen
                             </Button>
                         </div>
+                        <PhotoDialog
+                            open={photoDialogOpen}
+                            tourname={activeTour.name?}
+                            pendingImages={pendingTourImages}
+                            onFileChange={handleFileChange}
+                            onAdd={handleAddPhoto}
+                            onClose={() => setPhotoDialogOpen(false)}
+                            uploadedProgress={uploadedProgress}
+                        />
 
                         <Separator />
 
