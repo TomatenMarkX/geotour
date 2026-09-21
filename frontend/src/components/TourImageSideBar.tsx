@@ -1,7 +1,6 @@
 import { useCallback, type RefObject } from "react";
-import { Trash } from "lucide-react";
+import { FileImage, Trash } from "lucide-react";
 import type { TourPhoto } from "@/types";
-import { FileImage } from "lucide-react";
 
 interface TourImageSideBarProps {
     photos: TourPhoto[];
@@ -66,7 +65,7 @@ const TourImageRow = ({
             onMouseEnter={() => onHover(true)}
             onMouseLeave={() => onHover(false)}
         >
-            <div className="h-12 w-12 shrink-0 rounded-md overflow-hidden bg-muted relative">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-muted">
                 <FileImage
                     className="h-5 w-5 text-muted-foreground"
                 />

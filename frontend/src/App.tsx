@@ -32,7 +32,6 @@ import {
     DropdownMenuContent, DropdownMenuGroup,
     DropdownMenuItem,
     DropdownMenuLabel,
-    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
@@ -240,23 +239,28 @@ const App = () => {
         }
     };
 
-    const handleAddPhoto = async () => {
+    const handleAddPhotos = async () => {
+        if(!activeTour || pendingTourImages.length === 0) return;
         try {
-            if (pendingTourImages.length > 0) {
-                setUploadedProgress({ uploaded:0, total: pendingTourImages.length });
-                await uploadPhotos(activeTour.id, pendingTourImages, setUploadedProgress);
-            }
+            setUploadedProgress({ uploaded:0, total: pendingTourImages.length });
+            await uploadPhotos(activeTour.id, pendingTourImages, setUploadedProgress);
             revokePreviews(pendingTourImages);
             setPendingTourImages([]);
             setPhotoDialogOpen(false)
             setTourName("");
-            await handleLoadTours();
+            setPhotos(await loadTourPhotos(activeTour.id));
         }
         catch (cause: unknown) {
             setError(`Fehler beim Hochladen der Fotos: ${String(cause)}`);
         } finally {
             setUploadedProgress(null);
         }
+    };
+
+    const handlePhotoDialogClose = () => {
+        revokePreviews(pendingTourImages);
+        setPendingTourImages([]);
+        setPhotoDialogOpen(false);
     };
 
     const handleDeleteTour = async (tour: TourSummary) => {
@@ -521,11 +525,11 @@ const App = () => {
                         </div>
                         <PhotoDialog
                             open={photoDialogOpen}
-                            tourname={activeTour.name?}
+                            tourname={activeTour?.name?? ""}
                             pendingImages={pendingTourImages}
-                            onFileChange={handleFileChange}
-                            onAdd={handleAddPhoto}
-                            onClose={() => setPhotoDialogOpen(false)}
+                            onFileChange={handleTourFileChange}
+                            onAdd={handleAddPhotos}
+                            onClose={handlePhotoDialogClose}
                             uploadedProgress={uploadedProgress}
                         />
 

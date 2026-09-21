@@ -1,5 +1,5 @@
-import {PendingImage, UploadProgress} from "@/types";
-import {ChangeEvent, useRef} from "react";
+import type { PendingImage, UploadProgress } from "@/types";
+import { useRef, type ChangeEvent } from "react";
 import {
     Dialog,
     DialogClose,
@@ -33,7 +33,7 @@ const PhotoDialog = ({open, tourname, pendingImages, onFileChange, onAdd, onClos
                 <DialogHeader>
                     <DialogTitle>Fotos hinzufügen</DialogTitle>
                     <DialogDescription>
-                        Fotos zu ${tourname} hinzufügen
+                        Fotos zu "{tourname}" hinzufügen
                     </DialogDescription>
                 </DialogHeader>
                 <div className="p-4">
@@ -82,11 +82,14 @@ const PhotoDialog = ({open, tourname, pendingImages, onFileChange, onAdd, onClos
                 </div>
                 <DialogFooter>
                     <DialogClose asChild>
-                        <Button onClick={onClose} variant="outline" disabled={isUploading}>
+                        <Button variant="outline" disabled={isUploading}>
                             Abbrechen
                         </Button>
                     </DialogClose>
-                    <Button onClick={() => void onAdd()} disabled={isUploading || !tourname.trim()}>
+                    <Button
+                        onClick={() => void onAdd()}
+                        disabled={isUploading || pendingImages.length === 0}
+                    >
                         {isUploading ? "Wird hochgeladen…" : "Hochladen"}
                     </Button>
                 </DialogFooter>
