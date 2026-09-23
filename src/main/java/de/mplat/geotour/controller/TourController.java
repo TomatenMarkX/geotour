@@ -19,10 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.net.URI;
 import java.time.Instant;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 @RestController
 @RequestMapping("/tours")
@@ -109,6 +106,13 @@ public class TourController {
         return new ShareResponse(tour.isPublic(), tour.getShareToken());
     }
 
+    @PutMapping("/{tourId}/photos/order")
+    @Transactional
+    public ResponseEntity<Void> changePhotoOrder(@AuthenticationPrincipal Jwt jwt, @PathVariable("tourId") UUID tourId, @RequestBody List<UUID> orderIds) {
+        photoService.reorder(requireOwnerTour(tourId, jwt), orderIds);
+        return ResponseEntity.ok().build();
+    }
+
     @PostMapping("/{tourId}/privacy/rotate")
     @Transactional
     public ShareResponse rotateShareToken(@AuthenticationPrincipal Jwt jwt, @PathVariable("tourId") UUID tourId) {
@@ -148,7 +152,8 @@ public class TourController {
         Photo photo = photoRepository.findByTourIdAndId(tourId, photoId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         photoRepository.delete(photo);
-        storageService.deleteQuietly(photo.getStorageKey());
+        photoRepository.shiftPositions(tourId, photo.getPosition() + 1, -1);
+        deleteFromStorageAfterCommit(new ArrayList<String>(Arrays.asList(photo.getStorageKey())));
         return ResponseEntity.noContent().build();
     }
 
@@ -193,7 +198,7 @@ public class TourController {
     public record CreateTourRequest(@NotBlank @Size(max = 200) String name) {}
     public record TourResponse(UUID id, String name) {}
     public record UploadUrlRequest(@NotEmpty @Size(max = 50) List<@NotBlank String> filenames) {}
-    public record RegisterPhotoRequest(@NotEmpty List<PhotoService.PhotoRegistration> photos, int startingIndex) {}
+    public record RegisterPhotoRequest(@NotEmpty List<PhotoService.PhotoRegistration> photos, @PositiveOrZero Integer startingIndex) {}
     public record PhotoResponse(UUID id, String key, double lat, double lng) {}
     public record SetPasswordRequest(String password) {}
     public record VerifyTourRequest(@NotNull UUID shareToken, String password) {}

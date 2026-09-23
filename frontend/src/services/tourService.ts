@@ -98,7 +98,7 @@ export async function verifyTour(shareToken: string, password?: string): Promise
 export async function uploadPhotos(
   tourId: string,
   images: PendingImage[],
-  startingIndex: number,
+  startingIndex: number | null,
   onProgress?: (progress: UploadProgress) => void,
 ): Promise<RegisteredPhoto[]> {
   const registered: RegisteredPhoto[] = [];
@@ -130,7 +130,7 @@ export async function uploadPhotos(
       ...(await apiFetch<RegisteredPhoto[]>(`/tours/${tourId}/photos`, {
         method: "POST",
         json: { photos: staged,
-                startingIndex: startingIndex
+                startingIndex: startingIndex === null ? null : startingIndex + from
         },
       })),
     );
@@ -160,6 +160,14 @@ export function deletePhoto(tourId: string, photoId: string): Promise<void> {
 
 export function sortByPosition(photos: TourPhoto[]): TourPhoto[] {
   return [...photos].sort((left, right) => left.position - right.position);
+}
+
+export function reorderPhotos(tourId: string, orderIds: string[]) : Promise<void> {
+  return apiFetch<void>(`/tours/${tourId}/photos/order`,
+      {
+        method: "PUT",
+        json:  orderIds
+      })
 }
 
 export function newestFirst(tours: TourSummary[]): TourSummary[] {

@@ -73,6 +73,10 @@ public class Photo {
         return position;
     }
 
+    public void setPosition(int position) {
+        this.position = position;
+    }
+
     public UUID getId() {
         return id;
     }

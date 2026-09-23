@@ -16,7 +16,7 @@ import {
     deleteTour,
     loadTourPhotos,
     loadTours,
-    renameTour,
+    renameTour, reorderPhotos,
     setTourPrivacy,
     shareUrl,
     uploadPhotos,
@@ -240,16 +240,11 @@ const App = () => {
         }
     };
 
-    const handleAddPhotosAtEnd = async (atEnd: boolean) => {
+    const handleAddPhotos = async (atEnd: boolean) => {
         if(!activeTour || pendingTourImages.length === 0) return;
         try {
             setUploadedProgress({ uploaded:0, total: pendingTourImages.length });
-            if (atEnd) {
-                await uploadPhotos(activeTour.id, pendingTourImages, photos.length, setUploadedProgress);
-            }
-            else {
-                await uploadPhotos(activeTour.id, pendingTourImages, 0, setUploadedProgress);
-            }
+            await uploadPhotos(activeTour.id, pendingTourImages, atEnd ? null : 0, setUploadedProgress);
             revokePreviews(pendingTourImages);
             setPendingTourImages([]);
             setPhotoDialogOpen(false);
@@ -341,6 +336,17 @@ const App = () => {
         }
         event.target.value = "";
     };
+
+    const handleReorderPhotos = async (reordered: TourPhoto[]) =>{
+        if (!activeTour) return;
+        const previous = photos;
+        setPhotos(reordered);
+        try {
+            await reorderPhotos(activeTour.id, reordered.map(photo => photo.id));
+        } catch (cause: unknown) {
+            setPhotos(previous);
+        }
+    }
 
     const handleFileDelete = (index: number) => {
         setFiles((previous) => {
@@ -534,7 +540,7 @@ const App = () => {
                             tourname={activeTour?.name?? ""}
                             pendingImages={pendingTourImages}
                             onFileChange={handleTourFileChange}
-                            onAdd={() => handleAddPhotosAtEnd(uploadAtEnd)}
+                            onAdd={() => handleAddPhotos(uploadAtEnd)}
                             onClose={handlePhotoDialogClose}
                             uploadedProgress={uploadedProgress}
                         />
@@ -544,6 +550,7 @@ const App = () => {
                         <ScrollArea className="flex-1 overflow-hidden px-4 pb-4 pt-4">
                             <TourImageSideBar
                                 photos={photos}
+                                onReorder={handleReorderPhotos}
                                 selectedPhotoId={selectedPointId}
                                 hoveredPhotoId={hoveredPointId}
                                 onSelectPhoto={handleSelectPhoto}

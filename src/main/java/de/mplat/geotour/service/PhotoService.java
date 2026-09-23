@@ -3,7 +3,7 @@ package de.mplat.geotour.service;
 import de.mplat.geotour.entity.Photo;
 import de.mplat.geotour.entity.PhotoRepository;
 import de.mplat.geotour.entity.Tour;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
@@ -11,6 +11,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 public class PhotoService {
@@ -23,7 +25,7 @@ public class PhotoService {
     }
 
     @Transactional
-    public List<Photo> register(@NotNull List<PhotoRegistration> photos, @NotNull Tour tour, int startingIndex) {
+    public List<Photo> register(@NotNull List<PhotoRegistration> photos, @NotNull Tour tour, Integer startingIndex) {
         Map<String, Long> filesizes = new HashMap<>();
         List<String> invalid = new ArrayList<>();
         for (PhotoRegistration photo : photos) {
@@ -36,8 +38,11 @@ public class PhotoService {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT, "Ungültige Uploads oder Duplikate: " + invalid);
         }
         int end = photoRepository.findMaxPositionByTourId(tour.getId()).orElse(-1) + photos.size();
-        int offset = Math.clamp(startingIndex, 0, end);
-        photoRepository.shiftPositions(tour.getId(), offset, photos.size());
+        int offset = startingIndex == null ? end : Math.clamp(startingIndex, 0, end);
+        if (offset < end) {
+            photoRepository.shiftPositions(tour.getId(), offset, photos.size());
+
+        }
         List<String> promoted = new ArrayList<>();
         try {
             List<Photo> items = new ArrayList<>();
@@ -51,6 +56,17 @@ public class PhotoService {
         } catch (RuntimeException e) {
             storageService.deleteQuietly(promoted);
             throw e;
+        }
+    }
+
+    @Transactional
+    public void reorder(Tour tour, List<UUID> orderIds) {
+        Map<UUID, Photo> byId = photoRepository.findByTourId(tour.getId()).stream().collect(Collectors.toMap(Photo::getId, Function.identity()));
+        if (orderIds.size() != byId.size()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Reihenfolge passt nicht zum aktuellen Stand der Tour");
+        }
+        for (int i = 0; i < orderIds.size(); i++) {
+            byId.get(orderIds.get(i)).setPosition(i);
         }
     }
 
