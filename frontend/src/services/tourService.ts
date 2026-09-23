@@ -98,6 +98,7 @@ export async function verifyTour(shareToken: string, password?: string): Promise
 export async function uploadPhotos(
   tourId: string,
   images: PendingImage[],
+  startingIndex: number,
   onProgress?: (progress: UploadProgress) => void,
 ): Promise<RegisteredPhoto[]> {
   const registered: RegisteredPhoto[] = [];
@@ -128,7 +129,9 @@ export async function uploadPhotos(
     registered.push(
       ...(await apiFetch<RegisteredPhoto[]>(`/tours/${tourId}/photos`, {
         method: "POST",
-        json: { photos: staged },
+        json: { photos: staged,
+                startingIndex: startingIndex
+        },
       })),
     );
   }

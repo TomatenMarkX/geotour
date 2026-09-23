@@ -7,11 +7,10 @@ import type { ChangeEvent, RefObject } from "react";
 
 interface NoActiveUserViewProps {
     handleOpenFileDialog: () => void;
-    fileInputRef: RefObject<HTMLInputElement>;
+    fileInputRef: RefObject<HTMLInputElement | null>;
     handleFileChange: (event: ChangeEvent<HTMLInputElement>) => void | Promise<void>;
     files: PendingImage[];
     handleFileDelete: (index: number) => void;
-    /** Identität eines Punktes ist die previewUrl — siehe pointOfPending in App.tsx. */
     hoveredFileId: string | null;
     onHoverFile: (fileId: string | null) => void;
     itemRefs: RefObject<Map<string, HTMLDivElement>>;

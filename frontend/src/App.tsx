@@ -88,6 +88,7 @@ const App = () => {
 
     const [tourDialogOpen, setTourDialogOpen] = useState(false);
     const [photoDialogOpen, setPhotoDialogOpen] = useState(false);
+    const [uploadAtEnd, setUploadAtEnd] = useState(true);
     const [tourName, setTourName] = useState("");
     const [tourLinkCopied, setTourLinkCopied] = useState(false);
     const [uploadedProgress, setUploadedProgress] = useState<UploadProgress | null>(null);
@@ -225,7 +226,7 @@ const App = () => {
             const tour = await createTour(tourName);
             if (pendingTourImages.length > 0) {
                 setUploadedProgress({ uploaded: 0, total: pendingTourImages.length });
-                await uploadPhotos(tour.id, pendingTourImages, setUploadedProgress);
+                await uploadPhotos(tour.id, pendingTourImages, 0, setUploadedProgress);
             }
             revokePreviews(pendingTourImages);
             setPendingTourImages([]);
@@ -239,15 +240,19 @@ const App = () => {
         }
     };
 
-    const handleAddPhotos = async () => {
+    const handleAddPhotosAtEnd = async (atEnd: boolean) => {
         if(!activeTour || pendingTourImages.length === 0) return;
         try {
             setUploadedProgress({ uploaded:0, total: pendingTourImages.length });
-            await uploadPhotos(activeTour.id, pendingTourImages, setUploadedProgress);
+            if (atEnd) {
+                await uploadPhotos(activeTour.id, pendingTourImages, photos.length, setUploadedProgress);
+            }
+            else {
+                await uploadPhotos(activeTour.id, pendingTourImages, 0, setUploadedProgress);
+            }
             revokePreviews(pendingTourImages);
             setPendingTourImages([]);
-            setPhotoDialogOpen(false)
-            setTourName("");
+            setPhotoDialogOpen(false);
             setPhotos(await loadTourPhotos(activeTour.id));
         }
         catch (cause: unknown) {
@@ -491,44 +496,45 @@ const App = () => {
                             user && activeTour ? "translate-x-0" : "-translate-x-full"
                         }`}
                     >
-                        <div className="flex shrink-0 items-center justify-between px-4 py-3">
+                        <div className="flex shrink-0 items-center justify-between gap-2 px-4 py-3">
                             <h2 className="truncate text-sm font-semibold text-foreground">{activeTour?.name}</h2>
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="outline" size="sm" className="gap-1.5">
-                                        <Plus className="h-4 w-4 text-muted-foreground" />
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent className="w-40" align="start">
-                                    <DropdownMenuGroup>
-                                        <DropdownMenuLabel>Bilder hinzufügen</DropdownMenuLabel>
-                                        <DropdownMenuItem disabled>
-                                            Bilder am Ende hinzufügen
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem disabled>
-                                            Bilder am Anfang hinzufügen
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem disabled>
-                                            Bilder in passende Reihenfolge hinzufügen
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem disabled>
-                                            Erweiterte Anzeige
-                                        </DropdownMenuItem>
-                                    </DropdownMenuGroup>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
+                            <div className="flex shrink-0 items-center gap-2">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline" size="sm" className="gap-1.5">
+                                            <Plus className="h-4 w-4 text-muted-foreground" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent className="w-40" align="start">
+                                        <DropdownMenuGroup>
+                                            <DropdownMenuLabel>Bilder hinzufügen</DropdownMenuLabel>
+                                            <DropdownMenuItem onSelect={() => {setPhotoDialogOpen(true); setUploadAtEnd(true)}}>
+                                                Bilder am Ende hinzufügen
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onSelect={() => {setPhotoDialogOpen(true); setUploadAtEnd(false)}}>
+                                                Bilder am Anfang hinzufügen
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem disabled>
+                                                Bilder in passende Reihenfolge hinzufügen
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem disabled>
+                                                Erweiterte Anzeige
+                                            </DropdownMenuItem>
+                                        </DropdownMenuGroup>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
 
-
-                            <Button variant="ghost" size="sm" onClick={() => setActiveTour(null)}>
-                                Schließen
-                            </Button>
+                                <Button variant="ghost" size="sm" onClick={() => setActiveTour(null)}>
+                                    Schließen
+                                </Button>
+                            </div>
                         </div>
                         <PhotoDialog
                             open={photoDialogOpen}
                             tourname={activeTour?.name?? ""}
                             pendingImages={pendingTourImages}
                             onFileChange={handleTourFileChange}
-                            onAdd={handleAddPhotos}
+                            onAdd={() => handleAddPhotosAtEnd(uploadAtEnd)}
                             onClose={handlePhotoDialogClose}
                             uploadedProgress={uploadedProgress}
                         />

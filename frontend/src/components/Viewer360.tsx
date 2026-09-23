@@ -1,33 +1,36 @@
-import { useState } from "react";
-import ReactPannellum from "react-pannellum";
+import { useEffect, useRef } from "react";
+import "pannellum/build/pannellum.js";
 
 interface Viewer360Props {
     imageUrl: string;
+    showControls?: boolean;
 }
 
 /**
- * react-pannellum hält seine Viewer-Instanzen in modulweiten Variablen und
- * sucht den Container per document.getElementById. Zwei Konsequenzen:
- *   - die id muss pro Instanz eindeutig sein, sonst greifen zwei Viewer
- *     auf denselben DOM-Knoten zu
- *   - ein Wechsel von imageSource allein lädt die Szene nicht neu, deshalb
- *     erzwingt key={imageUrl} einen vollständigen Remount
+ * Pannellum direkt, ohne Wrapper: Der Viewer bekommt das DOM-Element per Ref,
+ * damit entfallen die globalen ids. Bei jedem Bildwechsel wird die alte
+ * Instanz zerstört und eine neue erzeugt.
  */
-let instanceCounter = 0;
+const Viewer360 = ({ imageUrl, showControls = true }: Viewer360Props) => {
+    const containerRef = useRef<HTMLDivElement>(null);
 
-const Viewer360 = ({ imageUrl }: Viewer360Props) => {
-    const [instanceId] = useState(() => ++instanceCounter);
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
 
-    return (
-        <ReactPannellum
-            key={imageUrl}
-            id={`viewer-${instanceId}`}
-            sceneId={`scene-${instanceId}`}
-            imageSource={imageUrl}
-            style={{ height: "100%", width: "100%" }}
-            config={{ autoLoad: true }}
-        />
-    );
+        const viewer = window.pannellum.viewer(container, {
+            type: "equirectangular",
+            panorama: imageUrl,
+            autoLoad: true,
+            showControls,
+            // Muss zum Preload im TourViewer passen (gleicher Cache-Eintrag)
+            crossOrigin: "anonymous",
+        });
+
+        return () => viewer.destroy();
+    }, [imageUrl, showControls]);
+
+    return <div ref={containerRef} className="h-full w-full" />;
 };
 
 export default Viewer360;

@@ -3,6 +3,7 @@ package de.mplat.geotour.service;
 import de.mplat.geotour.entity.Photo;
 import de.mplat.geotour.entity.PhotoRepository;
 import de.mplat.geotour.entity.Tour;
+import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
@@ -21,7 +22,8 @@ public class PhotoService {
         this.photoRepository = photoRepository;
     }
 
-    public List<Photo> register(@NotNull List<PhotoRegistration> photos, @NotNull Tour tour) {
+    @Transactional
+    public List<Photo> register(@NotNull List<PhotoRegistration> photos, @NotNull Tour tour, int startingIndex) {
         Map<String, Long> filesizes = new HashMap<>();
         List<String> invalid = new ArrayList<>();
         for (PhotoRegistration photo : photos) {
@@ -33,8 +35,10 @@ public class PhotoService {
         if(!invalid.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT, "Ungültige Uploads oder Duplikate: " + invalid);
         }
+        int end = photoRepository.findMaxPositionByTourId(tour.getId()).orElse(-1) + photos.size();
+        int offset = Math.clamp(startingIndex, 0, end);
+        photoRepository.shiftPositions(tour.getId(), offset, photos.size());
         List<String> promoted = new ArrayList<>();
-        int offset = photoRepository.findMaxPositionByTourId(tour.getId()).orElse(-1) + 1;
         try {
             List<Photo> items = new ArrayList<>();
             for (int index = 0; index < photos.size(); index++) {

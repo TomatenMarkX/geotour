@@ -5,10 +5,7 @@ import de.mplat.geotour.helper.Mapper;
 import de.mplat.geotour.service.PhotoService;
 import de.mplat.geotour.service.StorageService;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -57,7 +54,7 @@ public class TourController {
     @PostMapping("/{tourId}/photos")
     public ResponseEntity<List<PhotoResponse>> registerPhoto(@AuthenticationPrincipal Jwt jwt, @PathVariable("tourId") UUID tourId, @Valid @RequestBody RegisterPhotoRequest request) {
         try {
-            List<Photo> promotedPhotos = photoService.register(request.photos(), requireOwnerTour(tourId, jwt));
+            List<Photo> promotedPhotos = photoService.register(request.photos(), requireOwnerTour(tourId, jwt), request.startingIndex());
             List<PhotoResponse> responses = promotedPhotos.stream().map(photo -> new PhotoResponse(photo.getId(), photo.getStorageKey(), photo.getLat(), photo.getLng())).toList();
             return ResponseEntity.status(HttpStatus.CREATED).body(responses);
         }
@@ -196,7 +193,7 @@ public class TourController {
     public record CreateTourRequest(@NotBlank @Size(max = 200) String name) {}
     public record TourResponse(UUID id, String name) {}
     public record UploadUrlRequest(@NotEmpty @Size(max = 50) List<@NotBlank String> filenames) {}
-    public record RegisterPhotoRequest(@NotEmpty List<PhotoService.PhotoRegistration> photos) {}
+    public record RegisterPhotoRequest(@NotEmpty List<PhotoService.PhotoRegistration> photos, int startingIndex) {}
     public record PhotoResponse(UUID id, String key, double lat, double lng) {}
     public record SetPasswordRequest(String password) {}
     public record VerifyTourRequest(@NotNull UUID shareToken, String password) {}

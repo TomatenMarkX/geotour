@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { createPortal } from "react-dom";
 import { sortByPosition, verifyTour } from "@/services/tourService";
 import type { PublicTour, TourPhoto } from "@/types";
-import ReactPannellum from "react-pannellum";
+import Viewer360 from "@/components/Viewer360";
 import {
     ChevronLeft,
     ChevronRight,
@@ -254,14 +254,7 @@ const TourViewer = () => {
             {/* ── 360° Viewer ────────────────────────────────────────────────── */}
             <div className="flex-1 relative overflow-hidden">
                 <div style={{ position: "absolute", inset: 0, willChange: "transform, opacity", ...viewerStyle() }}>
-                    <ReactPannellum
-                        key={currentImageUrl}
-                        id={`viewer-${visibleIndex}`}
-                        sceneId={`scene-${visibleIndex}`}
-                        imageSource={currentImageUrl}
-                        style={{ height: "100%", width: "100%" }}
-                        config={{ autoLoad: true, showControls: false }}
-                    />
+                    <Viewer360 imageUrl={currentImageUrl} showControls={false} />
                 </div>
             </div>
 
